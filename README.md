@@ -20,8 +20,11 @@ The main exported function is `capture` and has two arities:
 **DSN**: A Sentry DSN as defined http://sentry.readthedocs.org/en/2.9.0/client/index.html#parsing-the-dsn
 **Event**: Either an exception or a map
 
+### Notes
 
-## License
+Largely inspired by https://github.com/sethtrain/raven-clj
+
+### License
 
 Copyright © 2016 Pierre-Yves Ritschard <pyr@spootnik.org>
 
