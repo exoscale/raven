@@ -1,4 +1,4 @@
-(defproject spootnik/raven "0.1.0"
+(defproject spootnik/raven "0.1.1"
   :description "clojure sentry client library"
   :url "https://github.com/pyr/raven"
   :license {:name "MIT License"}

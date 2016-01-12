@@ -10,6 +10,14 @@
 ;; formatting
 ;; ==========
 
+(defn md5
+  [x]
+  (reduce
+   str
+   (for [b (-> (java.security.MessageDigest/getInstance "MD5")
+               (.digest (.getBytes x)))]
+     (format "%02x" b))))
+
 (defn exception?
   "Is the value an exception?"
   [e]
@@ -25,16 +33,17 @@
 (defn exception->ev
   "Format an exception in an appropriate manner."
   [e]
-  {:message   (.getMessage e)
-   :culprit   (.getMessage e)
-   :exception [{:stacktrace {:frames (for [f (reverse (.getStackTrace e))]
-                                       (frame->info f))}
-                :type       (str (class e))
-                :value      (.getMessage e)}]})
+  {:message                      (.getMessage e)
+   :culprit                      (str (class e))
+   :checksum                     (md5 (str (class e)))
+   :sentry.interfaces.Stacktrace {:frames (for [f (reverse (.getStackTrace e))]
+                                            (frame->info f))}
+   :sentry.interfaces.Exception  {:message   (.getMessage e)
+                                  :type      (str (class e))}})
 
 (def user-agent
   "Our advertized UA"
-  "spootnik-raven/0.1.0")
+  "spootnik-raven/0.1.1")
 
 (defn random-uuid!
   "A random UUID, without dashes"
@@ -86,7 +95,6 @@
   "Provide default values for a payload."
   [ts]
   {:level       "off"
-   :tags        [["level" "error"]]
    :server_name (localhost)
    :culprint    "<none>"
    :platform    "java"
