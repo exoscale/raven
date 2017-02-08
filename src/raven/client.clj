@@ -41,7 +41,7 @@
 (defn exception->ev
   "Format an exception in an appropriate manner."
   [^Throwable e]
-  (let [data (ex-data e)]
+ (let [data (ex-data e)]
     (cond-> {:message                      (.getMessage e)
              :culprit                      (str (class e))
              :checksum                     (md5 (str (class e)))
@@ -52,7 +52,7 @@
 
 (def user-agent
   "Our advertized UA"
-  "spootnik-raven/0.1.1")
+  "spootnik-raven/0.1.2")
 
 (defn random-uuid!
   "A random UUID, without dashes"
