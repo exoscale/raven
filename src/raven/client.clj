@@ -1,5 +1,8 @@
 (ns raven.client
   "A netty-based Sentry client."
+  (:import java.lang.Throwable
+           java.lang.Exception
+           java.lang.StackTraceElement)
   (:require [net.http.client    :as http]
             [cheshire.core      :as json]
             [clojure.string     :as str]
@@ -11,7 +14,7 @@
 ;; ==========
 
 (defn md5
-  [x]
+  [^String x]
   (reduce
    str
    (for [b (-> (java.security.MessageDigest/getInstance "MD5")
@@ -25,21 +28,27 @@
 
 (defn frame->info
   "Format a stack-trace frame."
-  [frame]
+  [^StackTraceElement frame]
   {:filename (.getFileName frame)
    :lineno   (.getLineNumber frame)
    :function (str (.getClassName frame) "." (.getMethodName frame))})
 
+(defn exception-frames
+  [^Exception e]
+  (for [f (reverse (.getStackTrace e))]
+    (frame->info f)))
+
 (defn exception->ev
   "Format an exception in an appropriate manner."
-  [e]
-  {:message                      (.getMessage e)
-   :culprit                      (str (class e))
-   :checksum                     (md5 (str (class e)))
-   :sentry.interfaces.Stacktrace {:frames (for [f (reverse (.getStackTrace e))]
-                                            (frame->info f))}
-   :sentry.interfaces.Exception  {:message   (.getMessage e)
-                                  :type      (str (class e))}})
+  [^Throwable e]
+  (let [data (ex-data e)]
+    (cond-> {:message                      (.getMessage e)
+             :culprit                      (str (class e))
+             :checksum                     (md5 (str (class e)))
+             :sentry.interfaces.Stacktrace {:frames (exception-frames e)}
+             :sentry.interfaces.Exception  {:message   (.getMessage e)
+                                            :type      (str (class e))}}
+      data (assoc :extra data))))
 
 (def user-agent
   "Our advertized UA"
@@ -65,7 +74,7 @@
    [(System/currentTimeMillis)
     (let [{:keys [exit out]} (sh/sh "hostname")]
       (if (= exit 0)
-        (.trim out)))]))
+        (str/trim out)))]))
 
 (let [cache (atom [nil nil])]
   (defn localhost
@@ -84,7 +93,7 @@
 (defn parse-dsn
   "Extract DSN parameters into a map"
   [dsn]
-  (if-let [[_ proto key secret uri pid] (re-find dsn-pattern dsn)]
+  (if-let [[_ proto key secret uri ^String pid] (re-find dsn-pattern dsn)]
     {:key    key
      :secret secret
      :uri    (format "%s://%s" proto uri)
@@ -131,7 +140,7 @@
 
 (defn sign
   "HMAC-SHA1 for Sentry's format."
-  [payload ts key secret]
+  [payload ts key ^String secret]
   (let [key (javax.crypto.spec.SecretKeySpec. (.getBytes secret) "HmacSHA1")
         bs  (-> (doto (javax.crypto.Mac/getInstance "HmacSHA1")
                     (.init key))
