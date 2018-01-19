@@ -7,7 +7,7 @@ A Clojure library to send events to a sentry host.
 ### Usage
 
 ```clojure
-[[spootnik/raven "0.1.2"]]
+[[spootnik/raven "0.1.4"]]
 ```
 
 The main exported function is `capture` and has two arities:
@@ -21,6 +21,12 @@ The main exported function is `capture` and has two arities:
 **Event**: Either an exception or a map
 
 ### Changelog
+
+#### 0.1.4
+
+- Add deps.edn support
+- Adapt to recent versions of net
+
 
 #### 0.1.2
 

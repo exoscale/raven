@@ -7,6 +7,7 @@
             [cheshire.core      :as json]
             [clojure.string     :as str]
             [net.codec.b64      :as b64]
+            [net.transform.string :as st]
             [clojure.java.shell :as sh]))
 
 
@@ -52,7 +53,7 @@
 
 (def user-agent
   "Our advertized UA"
-  "spootnik-raven/0.1.2")
+  "spootnik-raven/0.1.4")
 
 (defn random-uuid!
   "A random UUID, without dashes"
@@ -156,11 +157,13 @@
          payload                      (payload ev ts pid)
          sig                          (sign payload ts key secret)]
      (http/request client
-                   {:uri     (format "%s/api/store/" uri pid)
+                   {:uri            (format "%s/api/store/" uri pid)
                     :request-method :post
-                    :headers {"X-Sentry-Auth" (auth-header ts key sig)
-                              "User-Agent"    user-agent
-                              "Content-Type"  "application/json"}
-                    :body    payload})))
+                    :headers        {"X-Sentry-Auth" (auth-header ts key sig)
+                                     "User-Agent"    user-agent
+                                     "Content-Type"  "application/json"
+                                     "Content-Length" (count payload)}
+                    :transform      st/transform
+                    :body           payload})))
   ([dsn ev]
    (capture! (http/build-client {}) dsn ev)))
