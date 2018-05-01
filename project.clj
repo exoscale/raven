@@ -5,4 +5,6 @@
   :profiles {:dev {:global-vars {*warn-on-reflection* true}}}
   :dependencies [[org.clojure/clojure "1.9.0"]
                  [spootnik/net        "0.3.3-beta24"]
-                 [cheshire            "5.8.0"]])
+                 [cheshire            "5.8.0"]]
+  :plugins [[lein-cljfmt "0.5.7"]]                 
+)
