@@ -11,12 +11,21 @@
    :uri "https://sentry.example.com"
    :pid 42})
 
+(def expected-sig
+  "da3edd4ce3c55f1552fb01108f974a1181513323")
+
 (def frozen-ts
   "2018-05-01 16:20:44.955")
+
+(def expected-header
+  (str "Sentry sentry_version=2.0, sentry_signature=" expected-sig ", sentry_timestamp=" frozen-ts ", sentry_client=spootnik-raven/0.1.4, sentry_key=" (:key expected-parsed-dsn)))
 
 (deftest raven-client-tests
   (testing "parsing DSN"
     (is (= (parse-dsn dsn-fixture) expected-parsed-dsn)))
 
   (testing "signing"
-    (is (= (sign "payload" frozen-ts (:key expected-parsed-dsn) (:secret expected-parsed-dsn)) "da3edd4ce3c55f1552fb01108f974a1181513323"))))
+    (is (= (sign "payload" frozen-ts (:key expected-parsed-dsn) (:secret expected-parsed-dsn)) expected-sig)))
+
+  (testing "the auth header is what we expect"
+    (is (= (auth-header frozen-ts (:key expected-parsed-dsn) expected-sig) expected-header))))
