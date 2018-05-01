@@ -10,7 +10,6 @@
             [net.transform.string :as st]
             [clojure.java.shell :as sh]))
 
-
 ;; formatting
 ;; ==========
 
@@ -42,7 +41,7 @@
 (defn exception->ev
   "Format an exception in an appropriate manner."
   [^Throwable e]
- (let [data (ex-data e)]
+  (let [data (ex-data e)]
     (cond-> {:message                      (.getMessage e)
              :culprit                      (str (class e))
              :checksum                     (md5 (str (class e)))
@@ -71,11 +70,11 @@
   [[age val]]
   (if (and val (<= (* 1000 hostname-refresh-interval)
                    (- (System/currentTimeMillis) age)))
-   [age val]
-   [(System/currentTimeMillis)
-    (let [{:keys [exit out]} (sh/sh "hostname")]
-      (if (= exit 0)
-        (str/trim out)))]))
+    [age val]
+    [(System/currentTimeMillis)
+     (let [{:keys [exit out]} (sh/sh "hostname")]
+       (if (= exit 0)
+         (str/trim out)))]))
 
 (let [cache (atom [nil nil])]
   (defn localhost
@@ -144,8 +143,8 @@
   [payload ts key ^String secret]
   (let [key (javax.crypto.spec.SecretKeySpec. (.getBytes secret) "HmacSHA1")
         bs  (-> (doto (javax.crypto.Mac/getInstance "HmacSHA1")
-                    (.init key))
-                  (.doFinal (.getBytes (format "%s %s" ts payload))))]
+                  (.init key))
+                (.doFinal (.getBytes (format "%s %s" ts payload))))]
     (reduce str (for [b bs] (format "%02x" b)))))
 
 (defn capture!
