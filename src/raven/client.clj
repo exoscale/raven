@@ -103,11 +103,10 @@
 (defn default-payload
   "Provide default values for a payload."
   [ts]
-  {:level       "off"
+  {:level       "error"
    :server_name (localhost)
-   :culprint    "<none>"
-   :platform    "java"
-   :timestamp   ts})
+   :culprit    "<none>"
+   :platform    "java"})
 
 (defn auth-header
   ""
@@ -129,8 +128,7 @@
             (map? ev)       ev
             (exception? ev) (exception->ev ev)
             :else           {:message (str ev)})
-          {:datetime ts
-           :event_id (random-uuid!)
+          {:event_id (random-uuid!)
            :project  pid})))
 
 (defn timestamp!
