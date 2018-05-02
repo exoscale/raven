@@ -6,12 +6,11 @@
   (:require [net.http.client    :as http]
             [cheshire.core      :as json]
             [clojure.string     :as str]
+            [clojure.spec.alpha :as s]
             [net.codec.b64      :as b64]
             [net.transform.string :as st]
-            [clojure.java.shell :as sh]))
-
-;; formatting
-;; ==========
+            [clojure.java.shell :as sh]
+            [raven.spec :as spec]))
 
 (defn md5
   [^String x]
@@ -100,7 +99,7 @@
      :pid    (Long. pid)}
     (throw (ex-info "could not parse sentry DSN" {:dsn dsn}))))
 
-(defn default-payload
+(defn- default-payload
   "Provide default values for a payload."
   [ts]
   {:level       "error"
@@ -120,17 +119,28 @@
         param  (fn [[k v]] (format "sentry_%s=%s" (name k) v))]
     (str "Sentry " (str/join ", " (map param params)))))
 
+(defn- merged-payload
+  "Return a payload map depending on the type of the event."
+  [ev ts pid uuid]
+  (merge (default-payload ts)
+         (cond
+           (map? ev)       ev
+           (exception? ev) (exception->ev ev)
+           :else           {:message (str ev)})
+         {:event_id uuid
+          :project  pid}))
+
+(defn- validated-payload
+  "Returns a validated payload."
+  [merged]
+  (if (s/valid? ::payload merged)
+    merged
+    (s/explain ::payload merged)))
+
 (defn payload
   "Build a full valid payload"
-  [ev ts pid]
-  (json/generate-string
-   (merge (default-payload ts)
-          (cond
-            (map? ev)       ev
-            (exception? ev) (exception->ev ev)
-            :else           {:message (str ev)})
-          {:event_id (random-uuid!)
-           :project  pid})))
+  [ev ts pid uuid]
+  (json/generate-string (validated-payload (merged-payload ev ts pid uuid))))
 
 (defn timestamp!
   "Retrieve a timestamp.
@@ -156,7 +166,7 @@
   ([client dsn ev]
    (let [ts                           (timestamp!)
          {:keys [key secret uri pid]} (parse-dsn dsn)
-         payload                      (payload ev ts pid)
+         payload                      (payload ev ts pid (random-uuid!))
          sig                          (sign payload ts key secret)]
      (http/request client
                    {:uri            (format "%s/api/store/" uri pid)
