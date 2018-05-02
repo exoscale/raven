@@ -10,10 +10,10 @@ A Clojure library to send events to a sentry host.
 [[spootnik/raven "0.1.4"]]
 ```
 
-The main exported function is `capture` and has two arities:
+The main exported function is `capture!` and has two arities:
 
-- `(capture dsn event)`: Send a capture over the network, see the description of DSN and ev below.
-- `(capture client dsn event)`: Use the provided http client (as built by `net.http.client/http-client` from https://github.com/pyr/net.
+- `(capture! dsn event)`: Send a capture over the network, see the description of DSN and ev below.
+- `(capture! client dsn event)`: Use the provided http client (as built by `net.http.client/http-client` from https://github.com/pyr/net.
 
 #### Arguments
 
