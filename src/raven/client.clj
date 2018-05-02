@@ -106,6 +106,7 @@
   {:level       "error"
    :server_name (localhost)
    :culprit    "<none>"
+   :timestamp   ts
    :platform    "java"})
 
 (defn auth-header
@@ -132,9 +133,13 @@
            :project  pid})))
 
 (defn timestamp!
-  "Retrieve a timestamp"
+  "Retrieve a timestamp.
+  
+  The format used is the same as python's 'time.time()' function - the number
+  of seconds since the epoch, as a double to acount for fractional seconds (since
+  the granularity is miliseconds)."
   []
-  (str (java.sql.Timestamp. (.getTime (java.util.Date.)))))
+  (double (/ (System/currentTimeMillis) 1000)))
 
 (defn sign
   "HMAC-SHA1 for Sentry's format."
