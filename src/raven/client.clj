@@ -103,11 +103,11 @@
 (defn default-payload
   "Provide default values for a payload."
   [ts]
-  {:level       "off"
+  {:level       "error"
    :server_name (localhost)
-   :culprint    "<none>"
-   :platform    "java"
-   :timestamp   ts})
+   :culprit    "<none>"
+   :timestamp   ts
+   :platform    "java"})
 
 (defn auth-header
   ""
@@ -129,14 +129,17 @@
             (map? ev)       ev
             (exception? ev) (exception->ev ev)
             :else           {:message (str ev)})
-          {:datetime ts
-           :event_id (random-uuid!)
+          {:event_id (random-uuid!)
            :project  pid})))
 
 (defn timestamp!
-  "Retrieve a timestamp"
+  "Retrieve a timestamp.
+  
+  The format used is the same as python's 'time.time()' function - the number
+  of seconds since the epoch, as a double to acount for fractional seconds (since
+  the granularity is miliseconds)."
   []
-  (str (java.sql.Timestamp. (.getTime (java.util.Date.)))))
+  (double (/ (System/currentTimeMillis) 1000)))
 
 (defn sign
   "HMAC-SHA1 for Sentry's format."
