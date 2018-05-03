@@ -140,7 +140,9 @@
 (defn payload
   "Build a full valid payload"
   [ev ts pid uuid]
-  (json/generate-string (validated-payload (merged-payload ev ts pid uuid))))
+  (-> (merged-payload ev ts pid uuid)
+      (validated-payload)
+      (json/generate-string)))
 
 (defn timestamp!
   "Retrieve a timestamp.
