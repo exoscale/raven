@@ -130,7 +130,7 @@
          {:event_id uuid
           :project  pid}))
 
-(defn validated-payload
+(defn validate-payload
   "Returns a validated payload."
   [merged]
   (if (s/valid? ::payload merged)
@@ -141,7 +141,7 @@
   "Build a full valid payload"
   [ev ts pid uuid]
   (-> (merged-payload ev ts pid uuid)
-      (validated-payload)
+      (validate-payload)
       (json/generate-string)))
 
 (defn timestamp!
