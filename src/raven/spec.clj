@@ -1,8 +1,6 @@
 (ns raven.spec
   "specifications for the wire JSON structure when talking to sentry."
-  (:refer-clojure :exclude [assert])
-  (:require [clojure.spec.alpha :as s]
-            [expound.alpha      :as expound]))
+  (:require [clojure.spec.alpha :as s]))
 
 ;; We declare the message spec in the raven.client namespace to allow easy
 ;; reference from there (simply "::payload" when using the spec).
