@@ -6,12 +6,13 @@
   (:require [net.http.client    :as http]
             [cheshire.core      :as json]
             [clojure.string     :as str]
+            [clojure.spec.alpha :as s]
             [net.codec.b64      :as b64]
             [net.transform.string :as st]
-            [clojure.java.shell :as sh]))
+            [clojure.java.shell :as sh]
+            [raven.spec :as spec]))
 
-;; formatting
-;; ==========
+(s/check-asserts true)
 
 (defn md5
   [^String x]
@@ -120,17 +121,28 @@
         param  (fn [[k v]] (format "sentry_%s=%s" (name k) v))]
     (str "Sentry " (str/join ", " (map param params)))))
 
+(defn merged-payload
+  "Return a payload map depending on the type of the event."
+  [ev ts pid uuid]
+  (merge (default-payload ts)
+         (cond
+           (map? ev)       ev
+           (exception? ev) (exception->ev ev)
+           :else           {:message (str ev)})
+         {:event_id uuid
+          :project  pid}))
+
+(defn validate-payload
+  "Returns a validated payload."
+  [merged]
+  (s/assert ::payload merged))
+
 (defn payload
   "Build a full valid payload"
-  [ev ts pid]
-  (json/generate-string
-   (merge (default-payload ts)
-          (cond
-            (map? ev)       ev
-            (exception? ev) (exception->ev ev)
-            :else           {:message (str ev)})
-          {:event_id (random-uuid!)
-           :project  pid})))
+  [ev ts pid uuid]
+  (-> (merged-payload ev ts pid uuid)
+      (validate-payload)
+      (json/generate-string)))
 
 (defn timestamp!
   "Retrieve a timestamp.
@@ -156,7 +168,7 @@
   ([client dsn ev]
    (let [ts                           (timestamp!)
          {:keys [key secret uri pid]} (parse-dsn dsn)
-         payload                      (payload ev ts pid)
+         payload                      (payload ev ts pid (random-uuid!))
          sig                          (sign payload ts key secret)]
      (http/request client
                    {:uri            (format "%s/api/store/" uri pid)
@@ -169,3 +181,5 @@
                     :body           payload})))
   ([dsn ev]
    (capture! (http/build-client {}) dsn ev)))
+
+
