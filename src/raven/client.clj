@@ -99,7 +99,7 @@
      :pid    (Long. pid)}
     (throw (ex-info "could not parse sentry DSN" {:dsn dsn}))))
 
-(defn- default-payload
+(defn default-payload
   "Provide default values for a payload."
   [ts]
   {:level       "error"
@@ -119,7 +119,7 @@
         param  (fn [[k v]] (format "sentry_%s=%s" (name k) v))]
     (str "Sentry " (str/join ", " (map param params)))))
 
-(defn- merged-payload
+(defn merged-payload
   "Return a payload map depending on the type of the event."
   [ev ts pid uuid]
   (merge (default-payload ts)
@@ -130,7 +130,7 @@
          {:event_id uuid
           :project  pid}))
 
-(defn- validated-payload
+(defn validated-payload
   "Returns a validated payload."
   [merged]
   (if (s/valid? ::payload merged)
