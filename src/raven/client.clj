@@ -182,4 +182,3 @@
   ([dsn ev]
    (capture! (http/build-client {}) dsn ev)))
 
-
