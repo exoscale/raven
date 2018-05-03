@@ -13,14 +13,37 @@ A Clojure library to send events to a sentry host.
 The main exported function is `capture!` and has two arities:
 
 - `(capture! dsn event)`: Send a capture over the network, see the description of DSN and ev below.
-- `(capture! client dsn event)`: Use the provided http client (as built by `net.http.client/http-client` from https://github.com/pyr/net.
+- `(capture! client dsn event)`: Use the provided http client (as built by `net.http.client/http-client` from https://github.com/pyr/net).
 
 #### Arguments
 
-**DSN**: A Sentry DSN as defined http://sentry.readthedocs.org/en/2.9.0/client/index.html#parsing-the-dsn
-**Event**: Either an exception or a map
+- **DSN**: A Sentry DSN as defined http://sentry.readthedocs.org/en/2.9.0/client/index.html#parsing-the-dsn
+- **Event**: Either an exception or a map
+
+#### Breadcrumbs
+
+Adding sentry "breadcrumbs" can be done using the `add-breadcrumb!` function,
+that has the following arities:
+
+- `(add-breadcrumb! message category)` The created breadcrumb has a level of
+  "info"
+- `(add-breadcrumb! message category level)` Allows you to specify the desired
+  breadcrumb "level". Level can be one of: `["debug" "info" "warning" "warn" "error" "exception" "critical" "fatal"]`
+- `(add-breadcrumb! message category level timestamp)` Allows you to pass in a
+  specific timestamp for the breadcrumb you are creating.
+
+Please note that the breadcrums use thread-local storage, and therefore might
+be ill-suited for some use cases.
+
+More information can be found on [Sentry's documentation website](https://docs.sentry.io/clientdev/interfaces/breadcrumbs/)
 
 ### Changelog
+
+#### unreleased
+
+- Added support for breadcrumbs
+- Added specs for wire format (JSON)
+- Code cleanup
 
 #### 0.1.4
 

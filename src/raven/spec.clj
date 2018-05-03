@@ -1,7 +1,43 @@
 (ns raven.spec
-  "specifications for the wire JSON structure when talking to sentry."
+  "Specifications for the wire JSON structure when talking to sentry."
   (:require [clojure.spec.alpha :as s]))
+
+(def valid-levels
+  "A list of valid message levels."
+  ["debug" "info" "warning" "warn" "error" "exception" "critical" "fatal"])
+
+(def valid-types
+  "A list of valid breadcrumbs types."
+  ;; TODO: support the other types of breadcrumbs as well.
+  ;;["default" "navigation" "http"]
+  ["default"])
+
+(defn is-valid-type?
+  [typ]
+  (some #(= % typ) valid-types))
+
+(defn is-valid-level?
+  [lvl]
+  (some #(= % lvl) valid-levels))
+
+(defn is-valid-platform?
+  "Only one platform choice is valid for clojure."
+  [platform]
+  (= platform "java"))
+
+;; timestamp is expected to be "the number of seconds since the epoch", with a
+;; precision of a millisecond.
+(s/def ::timestamp float?)
+(s/def ::type is-valid-type?)
+(s/def ::level is-valid-level?)
+(s/def ::message string?)
+(s/def ::sever_name string?)
+(s/def ::culprit string?)
+(s/def ::platform is-valid-platform?)
+(s/def ::breadcrumb (s/keys :req-un [::type ::timestamp ::level ::message ::category]))
+(s/def ::values (s/coll-of ::breadcrumb))
+(s/def ::breadcrumbs (s/keys :req-un [::values]))
 
 ;; We declare the message spec in the raven.client namespace to allow easy
 ;; reference from there (simply "::payload" when using the spec).
-(s/def :raven.client/payload (s/keys :req-un [::level ::server_name ::timestamp ::platform]))
+(s/def :raven.client/payload (s/keys :req-un [::event_id ::culprit ::level ::server_name ::timestamp ::platform] :opt-un [::breadcrumbs]))

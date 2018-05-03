@@ -10,9 +10,23 @@
             [net.codec.b64      :as b64]
             [net.transform.string :as st]
             [clojure.java.shell :as sh]
-            [raven.spec :as spec]))
+            [raven.spec :as spec]
+            [flatland.useful.utils :as useful]))
 
+;; Make sure we enforce spec assertions.
 (s/check-asserts true)
+
+(def breadcrumbs
+  "Breadcrumbs for this particular thread.
+
+  This is a little funny in that it needs to be dereferenced once in order to
+  obtain an atom that is sure to be per-thread."
+  (useful/thread-local (atom [])))
+
+(defn clear-breadcrumbs
+  "Reset this thread's breadcrumbs."
+  []
+  (swap! @breadcrumbs (fn [x] (vector))))
 
 (defn md5
   [^String x]
@@ -103,15 +117,15 @@
 
 (defn default-payload
   "Provide default values for a payload."
-  [ts]
+  [ts localhost]
   {:level       "error"
-   :server_name (localhost)
+   :server_name localhost
    :culprit    "<none>"
    :timestamp   ts
    :platform    "java"})
 
 (defn auth-header
-  ""
+  "Compute the Sentry auth header."
   [ts key sig]
   (let [params [[:version   "2.0"]
                 [:signature sig]
@@ -123,8 +137,8 @@
 
 (defn merged-payload
   "Return a payload map depending on the type of the event."
-  [ev ts pid uuid]
-  (merge (default-payload ts)
+  [ev ts pid uuid localhost]
+  (merge (default-payload ts localhost)
          (cond
            (map? ev)       ev
            (exception? ev) (exception->ev ev)
@@ -132,21 +146,33 @@
          {:event_id uuid
           :project  pid}))
 
+(defn add-breadcrumbs-to-payload
+  [payload]
+  (merge payload
+         (cond
+           (empty? @@breadcrumbs)  {}
+           :else   {:breadcrumbs {:values @@breadcrumbs}})))
+
 (defn validate-payload
   "Returns a validated payload."
   [merged]
   (s/assert ::payload merged))
 
 (defn payload
-  "Build a full valid payload"
-  [ev ts pid uuid]
-  (-> (merged-payload ev ts pid uuid)
-      (validate-payload)
-      (json/generate-string)))
+  "Build a full valid payload."
+  [ev ts pid uuid localhost]
+  (-> (merged-payload ev ts pid uuid localhost)
+      (add-breadcrumbs-to-payload)
+      (validate-payload)))
+
+(defn json-payload
+  "Return a full valid payload as a JSON string."
+  [ev ts pid uuid localhost]
+  (json/generate-string (payload ev ts pid uuid localhost)))
 
 (defn timestamp!
   "Retrieve a timestamp.
-  
+
   The format used is the same as python's 'time.time()' function - the number
   of seconds since the epoch, as a double to acount for fractional seconds (since
   the granularity is miliseconds)."
@@ -168,17 +194,45 @@
   ([client dsn ev]
    (let [ts                           (timestamp!)
          {:keys [key secret uri pid]} (parse-dsn dsn)
-         payload                      (payload ev ts pid (random-uuid!))
+         payload                      (json-payload ev ts pid (random-uuid!) (localhost))
          sig                          (sign payload ts key secret)]
-     (http/request client
-                   {:uri            (format "%s/api/store/" uri pid)
-                    :request-method :post
-                    :headers        {"X-Sentry-Auth" (auth-header ts key sig)
-                                     "User-Agent"    user-agent
-                                     "Content-Type"  "application/json"
-                                     "Content-Length" (count payload)}
-                    :transform      st/transform
-                    :body           payload})))
+     (do
+       (http/request client
+                     {:uri            (format "%s/api/store/" uri pid)
+                      :request-method :post
+                      :headers        {"X-Sentry-Auth" (auth-header ts key sig)
+                                       "User-Agent"    user-agent
+                                       "Content-Type"  "application/json"
+                                       "Content-Length" (count payload)}
+                      :transform      st/transform
+                      :body           payload})
+       ;; Make sure we clear the breadcrumbs from the thread-local storage.
+       (clear-breadcrumbs))))
   ([dsn ev]
    (capture! (http/build-client {}) dsn ev)))
 
+(defn make-breadcrumb
+  "Create a breadcrumb map."
+  [message category level timestamp]
+  ;; TODO: Extend to support more than just default breadcrumbs.
+  {:type "default"
+   :timestamp timestamp
+   :level level
+   :message message
+   :category category}
+  ;; :data (expected in case of non-default)
+)
+
+(defn add-breadcrumb!
+  "Append a breadcrumb to the list of breadcrumbs for this thread.
+
+  level can be one of:
+    ['debug' 'info' 'warning' 'warn' 'error' 'exception' 'critical' 'fatal']
+  "
+  ([message category]
+   (add-breadcrumb! message category "info"))
+  ([message category level]
+   (add-breadcrumb! message category level (timestamp!)))
+  ([message category level timestamp]
+   ;; We need to dereference to get the atom since "breadcrumbs" is thread-local.
+   (swap! @breadcrumbs #(conj % (make-breadcrumb message category level timestamp)))))
