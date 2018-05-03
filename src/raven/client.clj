@@ -12,6 +12,8 @@
             [clojure.java.shell :as sh]
             [raven.spec :as spec]))
 
+(s/check-asserts true)
+
 (defn md5
   [^String x]
   (reduce
@@ -133,9 +135,7 @@
 (defn validate-payload
   "Returns a validated payload."
   [merged]
-  (if (s/valid? ::payload merged)
-    merged
-    (s/explain ::payload merged)))
+  (s/assert ::payload merged))
 
 (defn payload
   "Build a full valid payload"
@@ -181,3 +181,5 @@
                     :body           payload})))
   ([dsn ev]
    (capture! (http/build-client {}) dsn ev)))
+
+
