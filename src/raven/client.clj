@@ -137,18 +137,18 @@
 
 (defn merged-payload
   "Return a payload map depending on the type of the event."
-  [ev ts pid uuid localhost]
+  [event ts pid uuid localhost]
   (merge (default-payload ts localhost)
          (cond
-           (map? ev)       ev
-           (exception? ev) (exception->ev ev)
-           :else           {:message (str ev)})
+           (map? event)       event
+           (exception? event) (exception->ev event)
+           :else              {:message (str event)})
          {:event_id uuid
           :project  pid}))
 
 (defn add-breadcrumbs-to-payload
-  [payload]
-  (let [breadcrumbs-list (:breadcrumbs @@thread-storage)]
+  [context payload]
+  (let [breadcrumbs-list (:breadcrumbs context)]
     (merge payload
            (cond
              (empty? breadcrumbs-list)  {}
@@ -161,15 +161,11 @@
 
 (defn payload
   "Build a full valid payload."
-  [ev ts pid uuid localhost]
-  (-> (merged-payload ev ts pid uuid localhost)
-      (add-breadcrumbs-to-payload)
-      (validate-payload)))
-
-(defn json-payload
-  "Return a full valid payload as a JSON string."
-  [ev ts pid uuid localhost]
-  (json/generate-string (payload ev ts pid uuid localhost)))
+  [context event ts pid uuid localhost]
+  (let [breadcrumbs-adder (partial add-breadcrumbs-to-payload context)]
+    (-> (merged-payload event ts pid uuid localhost)
+        (breadcrumbs-adder)
+        (validate-payload))))
 
 (defn timestamp!
   "Retrieve a timestamp.
@@ -189,16 +185,26 @@
                 (.doFinal (.getBytes (format "%s %s" ts payload))))]
     (reduce str (for [b bs] (format "%02x" b)))))
 
+(defn get-http-client
+  "Get a http client given a context.
+    
+    We expect callers to pass the http client in the context object at the
+    :http key."
+  [context]
+  (cond
+    (contains? context :http)   (:http context)
+    :else                       (http/build-client {})))
+
 (defn capture!
   "Send a capture over the network. If `ev` is an exception,
    build an appropriate payload for the exception."
-  ([client dsn ev]
+  ([context dsn event]
    (let [ts                           (timestamp!)
          {:keys [key secret uri pid]} (parse-dsn dsn)
-         payload                      (json-payload ev ts pid (random-uuid!) (localhost))
+         payload                      (json/generate-string (payload context event ts pid (random-uuid!) (localhost)))
          sig                          (sign payload ts key secret)]
      (do
-       (http/request client
+       (http/request (get-http-client context)
                      {:uri            (format "%s/api/store/" uri pid)
                       :request-method :post
                       :headers        {"X-Sentry-Auth" (auth-header ts key sig)
@@ -210,7 +216,7 @@
        ;; Make sure we clear the breadcrumbs from the thread-local storage.
        (clear-breadcrumbs))))
   ([dsn ev]
-   (capture! (http/build-client {}) dsn ev)))
+   (capture! @@thread-storage dsn ev)))
 
 (defn make-breadcrumb!
   "Create a breadcrumb map.

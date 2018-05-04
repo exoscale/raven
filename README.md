@@ -13,12 +13,25 @@ A Clojure library to send events to a sentry host.
 The main exported function is `capture!` and has two arities:
 
 - `(capture! dsn event)`: Send a capture over the network, see the description of DSN and ev below.
-- `(capture! client dsn event)`: Use the provided http client (as built by `net.http.client/http-client` from https://github.com/pyr/net).
+- `(capture! context dsn event)`: Send a capture passing additional context, such as a specific HTTP client.
 
 #### Arguments
 
 - **DSN**: A Sentry DSN as defined http://sentry.readthedocs.org/en/2.9.0/client/index.html#parsing-the-dsn
-- **Event**: Either an exception or a map
+- **Event**: Either an exception or a map.
+- **Context**: A map of aditional informations you can pass to Sentry. Note
+  that omitting this parameter will make use of some thread-local storage for
+  some of the functionality.
+
+#### Passing your own http instance
+
+In many cases, it makes sense to reuse an already existing http client (created
+with http/build-client). Raven will reuse an http instance if it is passed to
+the (capture!) function through the `context` parameter, as :http.
+
+```clojure
+(capture! {:http (http/build-client {})} "<dsn>" "My message")
+```
 
 #### Breadcrumbs
 
