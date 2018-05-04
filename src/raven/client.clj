@@ -191,9 +191,7 @@
     We expect callers to pass the http client in the context object at the
     :http key."
   [context]
-  (cond
-    (contains? context :http)   (:http context)
-    :else                       (http/build-client {})))
+  (or (:http context) (http/build-client {})))
 
 (defn capture!
   "Send a capture over the network. If `ev` is an exception,
