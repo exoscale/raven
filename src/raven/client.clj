@@ -16,17 +16,17 @@
 ;; Make sure we enforce spec assertions.
 (s/check-asserts true)
 
-(def breadcrumbs
-  "Breadcrumbs for this particular thread.
+(def thread-storage
+  "Storage for this particular thread.
 
   This is a little funny in that it needs to be dereferenced once in order to
   obtain an atom that is sure to be per-thread."
-  (useful/thread-local (atom [])))
+  (useful/thread-local (atom {})))
 
 (defn clear-breadcrumbs
   "Reset this thread's breadcrumbs."
   []
-  (swap! @breadcrumbs (fn [x] (vector))))
+  (swap! @thread-storage (fn [x] (dissoc x :breadcrumbs))))
 
 (defn md5
   [^String x]
@@ -148,10 +148,11 @@
 
 (defn add-breadcrumbs-to-payload
   [payload]
-  (merge payload
-         (cond
-           (empty? @@breadcrumbs)  {}
-           :else   {:breadcrumbs {:values @@breadcrumbs}})))
+  (let [breadcrumbs-list (:breadcrumbs @@thread-storage)]
+    (merge payload
+           (cond
+             (empty? breadcrumbs-list)  {}
+             :else   {:breadcrumbs {:values breadcrumbs-list}}))))
 
 (defn validate-payload
   "Returns a validated payload."
@@ -211,28 +212,33 @@
   ([dsn ev]
    (capture! (http/build-client {}) dsn ev)))
 
-(defn make-breadcrumb
-  "Create a breadcrumb map."
-  [message category level timestamp]
-  ;; TODO: Extend to support more than just default breadcrumbs.
-  {:type "default"
-   :timestamp timestamp
-   :level level
-   :message message
-   :category category}
+(defn make-breadcrumb!
+  "Create a breadcrumb map.
+    
+  level can be one of:
+    ['debug' 'info' 'warning' 'warn' 'error' 'exception' 'critical' 'fatal']"
+  ([message category]
+   (make-breadcrumb! message category "info"))
+  ([message category level]
+   (make-breadcrumb! message category level (timestamp!)))
+  ([message category level timestamp]
+   {:type "default" ;; TODO: Extend to support more than just default breadcrumbs.
+    :timestamp timestamp
+    :level level
+    :message message
+    :category category})
   ;; :data (expected in case of non-default)
 )
 
 (defn add-breadcrumb!
-  "Append a breadcrumb to the list of breadcrumbs for this thread.
+  "Append a breadcrumb to the list of breadcrumbs.
 
-  level can be one of:
-    ['debug' 'info' 'warning' 'warn' 'error' 'exception' 'critical' 'fatal']
+  The context is expected to be a map, and if no context is specified, a
+  thread-local storage map will be used instead.
   "
-  ([message category]
-   (add-breadcrumb! message category "info"))
-  ([message category level]
-   (add-breadcrumb! message category level (timestamp!)))
-  ([message category level timestamp]
-   ;; We need to dereference to get the atom since "breadcrumbs" is thread-local.
-   (swap! @breadcrumbs #(conj % (make-breadcrumb message category level timestamp)))))
+  ([breadcrumb]
+   ;; We need to dereference to get the atom since "thread-storage" is thread-local.
+   (swap! @thread-storage (fn [x] (update x :breadcrumbs conj breadcrumb))))
+  ([context breadcrumb]
+   ;; We add the breadcrumb to the context instead, in a ":breadcrumb" key.
+   (update context :breadcrumbs conj breadcrumb)))

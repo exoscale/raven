@@ -25,17 +25,32 @@ The main exported function is `capture!` and has two arities:
 Adding sentry "breadcrumbs" can be done using the `add-breadcrumb!` function,
 that has the following arities:
 
-- `(add-breadcrumb! message category)` The created breadcrumb has a level of
-  "info"
-- `(add-breadcrumb! message category level)` Allows you to specify the desired
-  breadcrumb "level". Level can be one of: `["debug" "info" "warning" "warn" "error" "exception" "critical" "fatal"]`
-- `(add-breadcrumb! message category level timestamp)` Allows you to pass in a
-  specific timestamp for the breadcrumb you are creating.
+- `(add-breadcrumb! breadcrumb)` Store a breadcrumb in thread-local storage.
+- `(add-breadcrumb! context breadcrumb)` Store a breadcrumb in a user-specified
+context. Context is expected to be map-like.
 
-Please note that the breadcrums use thread-local storage, and therefore might
-be ill-suited for some use cases.
+Well-formatted breadcrumb maps can be created with the `make-breadcrumb!`
+helper, with the following arities:
+
+- `(make-breadcrumb! message category)` A breadcrumb will be created with the
+  "info" level.
+- `(make-breadcrumb! message category level)` This allows specifying a level.
+  Levels can be one of: 'debug' 'info' 'warning' 'warn' 'error' 'exception' 'critical' 'fatal'
+- `(make-breadcrumb! message category level timestamp)` This allows setting a
+  custom timestamp instead of letting the helper get one for you. Timestamp
+  must be a floating point representation of **seconds** elapsed since the
+  epoch (not milliseconds).
 
 More information can be found on [Sentry's documentation website](https://docs.sentry.io/clientdev/interfaces/breadcrumbs/)
+
+#### Full example
+
+```clojure
+(def dsn "https://098f6bcd4621d373cade4e832627b4f6:ad0234829205b9033196ba818f7a872b@sentry.example.com/42")
+(add-breadcrumb! (make-breadcrumb! "The user did something" "com.example.Foo"))
+(add-breadcrumb! (make-breadcrumb! "The user did something wrong" "com.example.Foo" "error"))
+(capture! dsn (Exception.))
+```
 
 ### Changelog
 

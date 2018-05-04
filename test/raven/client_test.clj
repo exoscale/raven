@@ -74,25 +74,25 @@
 (deftest gather-breadcrumbs
   (testing "we can gather breadcrumbs"
     (do
-      (add-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts)
-      (is (= [expected-breadcrumb] @@breadcrumbs)))))
+      (add-breadcrumb! (make-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts))
+      (is (= [expected-breadcrumb] (:breadcrumbs @@thread-storage))))))
 
 (deftest add-breadcrumbs
   (testing "breadcrumbs are added to the payload"
     (do
-      (add-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts)
+      (add-breadcrumb! (make-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts))
       (is (= expected-breadcrumb (first (:values (:breadcrumbs (payload expected-message frozen-ts 42 frozen-uuid frozen-servername)))))))))
 
 (deftest multi-breadcrumbs
   (testing "adding several breadcrumbs to the payload"
     (do
-      (add-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts)
-      (add-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts)
+      (add-breadcrumb! (make-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts))
+      (add-breadcrumb! (make-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts))
       (is (= 2 (count (:values (:breadcrumbs (payload expected-message frozen-ts 42 frozen-uuid frozen-servername)))))))))
 
 (deftest multi-thread
   (testing "breadcrumbs are thread local"
     (do
-      (add-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts)
-      (add-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts)
+      (add-breadcrumb! (make-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts))
+      (add-breadcrumb! (make-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts))
       (is (nil? @(future (:breadcrumbs (payload expected-message frozen-ts 42 frozen-uuid frozen-servername))))))))
