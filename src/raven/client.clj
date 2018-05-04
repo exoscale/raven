@@ -39,6 +39,18 @@
   (clear-user)
   (clear-breadcrumbs))
 
+(defn clear-user
+  "Reset this thread's user."
+  []
+  (swap! @thread-storage (fn [x] (dissoc x :user))))
+
+(defn clear-context
+  "Reset this thread's context"
+  []
+  (do
+    (clear-user)
+    (clear-breadcrumbs)))
+
 (defn md5
   [^String x]
   (reduce
