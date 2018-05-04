@@ -19,7 +19,11 @@ The main exported function is `capture!` and has two arities:
 
 - **DSN**: A Sentry DSN as defined http://sentry.readthedocs.org/en/2.9.0/client/index.html#parsing-the-dsn
 - **Event**: Either an exception or a map.
+<<<<<<< HEAD
 - **Context**: A map of additional information you can pass to Sentry. Note
+=======
+- **Context**: A map of aditional informations you can pass to Sentry. Note
+>>>>>>> Add support for explicit context.
   that omitting this parameter will make use of some thread-local storage for
   some of the functionality.
 
