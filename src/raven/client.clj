@@ -28,6 +28,18 @@
   []
   (swap! @thread-storage (fn [x] (dissoc x :breadcrumbs))))
 
+(defn clear-user
+  "Reset this thread's user."
+  []
+  (swap! @thread-storage (fn [x] (dissoc x :user))))
+
+(defn clear-context
+  "Reset this thread's context"
+  []
+  (do
+    (clear-user)
+    (clear-breadcrumbs)))
+
 (defn md5
   [^String x]
   (reduce
@@ -151,6 +163,13 @@
   (let [breadcrumbs-list (:breadcrumbs context)]
     (cond-> payload (seq breadcrumbs-list) (assoc :breadcrumbs {:values breadcrumbs-list}))))
 
+(defn add-user-to-payload
+  [context payload]
+  (merge payload
+         (cond
+           (contains? context :user) {:user (:user context)}
+           :else {})))
+
 (defn validate-payload
   "Returns a validated payload."
   [merged]
@@ -159,9 +178,11 @@
 (defn payload
   "Build a full valid payload."
   [context event ts pid uuid localhost]
-  (let [breadcrumbs-adder (partial add-breadcrumbs-to-payload context)]
+  (let [breadcrumbs-adder (partial add-breadcrumbs-to-payload context)
+        user-adder (partial add-user-to-payload context)]
     (-> (merged-payload event ts pid uuid localhost)
         (breadcrumbs-adder)
+        (user-adder)
         (validate-payload))))
 
 (defn timestamp!
@@ -208,8 +229,8 @@
                                        "Content-Length" (count payload)}
                       :transform      st/transform
                       :body           payload})
-       ;; Make sure we clear the breadcrumbs from the thread-local storage.
-       (clear-breadcrumbs))))
+       ;; Make sure we clear the local-storage.
+       (clear-context))))
   ([dsn ev]
    (capture! @@thread-storage dsn ev)))
 
@@ -243,3 +264,21 @@
   ([context breadcrumb]
    ;; We add the breadcrumb to the context instead, in a ":breadcrumb" key.
    (update context :breadcrumbs conj breadcrumb)))
+
+(defn make-user
+  "Create a user map."
+  ([id]
+   {:id id})
+  ([id email ip-address username]
+   {:id id
+    :email email
+    :ip_address ip-address
+    :username username}))
+
+(defn add-user!
+  "Add user inormation to the sentry context (or a thread-local storage)."
+  ([user]
+   (swap! @thread-storage add-user! user))
+
+  ([context user]
+   (assoc context :user user)))
