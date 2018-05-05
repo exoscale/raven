@@ -242,7 +242,8 @@
   "
   ([breadcrumb]
    ;; We need to dereference to get the atom since "thread-storage" is thread-local.
-   (swap! @thread-storage (fn [x] (update x :breadcrumbs conj breadcrumb))))
+   (swap! @thread-storage add-breadcrumb! breadcrumb))
+
   ([context breadcrumb]
    ;; We add the breadcrumb to the context instead, in a ":breadcrumb" key.
    (update context :breadcrumbs conj breadcrumb)))
