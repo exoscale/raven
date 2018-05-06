@@ -42,7 +42,7 @@
 (defn clear-user
   "Reset this thread's user."
   []
-  (swap! @thread-storage (fn [x] (dissoc x :user))))
+  (swap! @thread-storage dissoc :user))
 
 (defn clear-context
   "Reset this thread's context"
