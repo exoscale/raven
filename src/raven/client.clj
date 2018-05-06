@@ -165,10 +165,7 @@
 
 (defn add-user-to-payload
   [context payload]
-  (merge payload
-         (cond
-           (contains? context :user) {:user (:user context)}
-           :else {})))
+  (cond-> payload (:user context) (assoc :user (:user context))))
 
 (defn validate-payload
   "Returns a validated payload."
@@ -279,6 +276,5 @@
   "Add user inormation to the sentry context (or a thread-local storage)."
   ([user]
    (swap! @thread-storage add-user! user))
-
   ([context user]
    (assoc context :user user)))
