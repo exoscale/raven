@@ -149,10 +149,7 @@
 (defn add-breadcrumbs-to-payload
   [context payload]
   (let [breadcrumbs-list (:breadcrumbs context)]
-    (merge payload
-           (cond
-             (empty? breadcrumbs-list)  {}
-             :else   {:breadcrumbs {:values breadcrumbs-list}}))))
+    (cond-> payload (seq breadcrumbs-list) (assoc :breadcrumbs {:values breadcrumbs-list}))))
 
 (defn validate-payload
   "Returns a validated payload."
