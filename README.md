@@ -92,7 +92,8 @@ More information can be found on [Sentry's documentation website](https://docs.s
 
 #### unreleased
 
-- Added support for breadcrumbs
+- Added support for User interface
+- Added support for Breadcrumbs interface
 - Added specs for wire format (JSON)
 - Code cleanup
 
