@@ -273,7 +273,7 @@
     :username username}))
 
 (defn add-user!
-  "Add user inormation to the sentry context (or a thread-local storage)."
+  "Add user information to the sentry context (or a thread-local storage)."
   ([user]
    (swap! @thread-storage add-user! user))
   ([context user]
