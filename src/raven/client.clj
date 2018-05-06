@@ -26,12 +26,12 @@
 (defn clear-breadcrumbs
   "Reset this thread's breadcrumbs."
   []
-  (swap! @thread-storage (fn [x] (dissoc x :breadcrumbs))))
+  (swap! @thread-storage dissoc :breadcrumbs))
 
 (defn clear-user
   "Reset this thread's user."
   []
-  (swap! @thread-storage (fn [x] (dissoc x :user))))
+  (swap! @thread-storage dissoc :user))
 
 (defn clear-context
   "Reset this thread's context"
