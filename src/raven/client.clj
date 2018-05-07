@@ -177,6 +177,10 @@
   [context payload]
   (cond-> payload (:user context) (assoc :user (:user context))))
 
+(defn add-http-info-to-payload
+  [context payload]
+  (cond-> payload (:request context) (assoc :request (:request context))))
+
 (defn validate-payload
   "Returns a validated payload."
   [merged]
@@ -186,10 +190,12 @@
   "Build a full valid payload."
   [context event ts pid uuid localhost]
   (let [breadcrumbs-adder (partial add-breadcrumbs-to-payload context)
-        user-adder (partial add-user-to-payload context)]
+        user-adder (partial add-user-to-payload context)
+        http-info-adder (partial add-http-info-to-payload context)]
     (-> (merged-payload event ts pid uuid localhost)
         (breadcrumbs-adder)
         (user-adder)
+        (http-info-adder)
         (validate-payload))))
 
 (defn timestamp!
@@ -288,3 +294,15 @@
    (swap! @thread-storage add-user! user))
   ([context user]
    (assoc context :user user)))
+
+(defn make-http-info
+  ([url method]
+   {:url url
+    :method method}))
+
+(defn add-http-info!
+  "Add HTTP information to the sentry context (or a thread-local storage)."
+  ([http-info]
+   (swap! @thread-storage add-http-info! http-info))
+  ([context http-info]
+   (assoc context :request http-info)))
