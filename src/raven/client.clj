@@ -44,11 +44,16 @@
   []
   (swap! @thread-storage dissoc :user))
 
+(defn clean-http-info
+  "reset this thread's http info."
+  (swap! @thread-storage dissoc :request))
+
 (defn clear-context
   "Reset this thread's context"
   []
   (clear-user)
-  (clear-breadcrumbs))
+  (clear-breadcrumbs)
+  (clear-http-info))
 
 (defn md5
   [^String x]
