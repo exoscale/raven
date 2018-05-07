@@ -36,9 +36,8 @@
 (defn clear-context
   "Reset this thread's context"
   []
-  (do
-    (clear-user)
-    (clear-breadcrumbs)))
+  (clear-user)
+  (clear-breadcrumbs))
 
 (defn md5
   [^String x]
