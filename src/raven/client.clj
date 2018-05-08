@@ -88,9 +88,9 @@
     (cond-> {:message                      (.getMessage e)
              :culprit                      (str (class e))
              :checksum                     (md5 (str (class e)))
-             :sentry.interfaces.Stacktrace {:frames (exception-frames e)}
-             :sentry.interfaces.Exception  {:message   (.getMessage e)
-                                            :type      (str (class e))}}
+             :stacktrace {:frames (exception-frames e)}
+             :exception  {:value  (.getMessage e)
+                          :type   (str (class e))}}
       data (assoc :extra data))))
 
 (def user-agent
