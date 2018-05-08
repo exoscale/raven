@@ -34,11 +34,14 @@
 (s/def ::sever_name string?)
 (s/def ::culprit string?)
 (s/def ::platform is-valid-platform?)
+(s/def ::headers map?)
+(s/def ::env map?)
 (s/def ::breadcrumb (s/keys :req-un [::type ::timestamp ::level ::message ::category]))
 (s/def ::values (s/coll-of ::breadcrumb))
 (s/def ::breadcrumbs (s/keys :req-un [::values]))
 (s/def ::user (s/keys :req-un [::id] :opt-un [::username ::email ::ip_address]))
+(s/def ::request (s/keys :req-un [::method ::url] :opt-un [::query_string ::cookies ::headers ::env ::data]))
 
 ;; We declare the message spec in the raven.client namespace to allow easy
 ;; reference from there (simply "::payload" when using the spec).
-(s/def :raven.client/payload (s/keys :req-un [::event_id ::culprit ::level ::server_name ::timestamp ::platform] :opt-un [::breadcrumbs ::user]))
+(s/def :raven.client/payload (s/keys :req-un [::event_id ::culprit ::level ::server_name ::timestamp ::platform] :opt-un [::breadcrumbs ::user ::request]))

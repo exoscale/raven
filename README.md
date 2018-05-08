@@ -78,13 +78,40 @@ with the following arities:
 
 More information can be found on [Sentry's documentation website](https://docs.sentry.io/clientdev/interfaces/user/)
 
+#### HTTP Requests
+
+As for Users, Sentry supports adding information about the HTTP request that
+resulted in the captured exception. To fill in that information this library
+provides a `add-http-info!` function with the following arities:
+
+- `(add-http-info! info)` Store the HTTP information in thread-local storage.
+- `(add-http-info! context info)` Store the HTTP information in the
+user-specified map-like context (expected to be ultimately passed to `(capture!)`).
+
+Well formatted HTTP information maps can be created with the `make-http-info`
+helper function, with the following arities:
+
+- `(make-http-info url method)` A simple HTTP info map with only required
+  fields (the request's URL and method) is created.
+- `(make-http-info url method headers query_string cookies data env)` Creates a
+  map with all the "special" fields recognised by Sentry. Additional fields can
+  be added to the created HTTP map if desired, and will simply show up in the
+  interface as extra fields.
+
+More information about the HTTP interface can be found on [Sentry's
+documentation website](https://docs.sentry.io/clientdev/interfaces/http/).
+
 #### Full example
+
+The following examples send Sentry a payload with all extra interfaces provided
+by this library.
 
 ```clojure
 (def dsn "https://098f6bcd4621d373cade4e832627b4f6:ad0234829205b9033196ba818f7a872b@sentry.example.com/42")
 (add-breadcrumb! (make-breadcrumb! "The user did something" "com.example.Foo"))
 (add-breadcrumb! (make-breadcrumb! "The user did something wrong" "com.example.Foo" "error"))
-(add-user (make-user "user-id" "test@example.com" "127.0.0.1" "username"))
+(add-user! (make-user "user-id" "test@example.com" "127.0.0.1" "username"))
+(add-http-info! (make-http-info "http://example.com/mypage" "GET"))
 (capture! dsn (Exception.))
 ```
 
@@ -92,8 +119,10 @@ More information can be found on [Sentry's documentation website](https://docs.s
 
 #### unreleased
 
+- Added support for HTTP interface
 - Added support for User interface
 - Added support for Breadcrumbs interface
+- Changed public API to support thread-local storage.
 - Added specs for wire format (JSON)
 - Code cleanup
 

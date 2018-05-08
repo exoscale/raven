@@ -49,6 +49,10 @@
    :message "message"
    :category "category"})
 
+(def simple-http-info
+  {:url "http://example.com"
+   :method "POST"})
+
 (defn reset-storage
   "A fixture to reset the per-thread atom between tests."
   [f]
@@ -115,3 +119,15 @@
   (testing "user is sent using a manual context"
     (let [context {:user (make-user expected-user-id)}]
       (is (= expected-user-id (:id (:user (payload context expected-message frozen-ts 42 frozen-uuid frozen-servername))))))))
+
+(deftest add-request
+  (testing "http information is added to the payload"
+    (do
+      (add-http-info! (make-http-info (:url simple-http-info) (:method simple-http-info)))
+      (is (= simple-http-info (:request (payload @@thread-storage expected-message frozen-ts 42 frozen-uuid frozen-servername)))))))
+
+(deftest manual-request
+  (testing "http information is sent using a manual context"
+
+    (let [context {:request (make-http-info (:url simple-http-info) (:method simple-http-info))}]
+      (is (= simple-http-info (:request (payload context expected-message frozen-ts 42 frozen-uuid frozen-servername)))))))
