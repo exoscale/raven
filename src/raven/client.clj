@@ -44,7 +44,7 @@
   []
   (swap! @thread-storage dissoc :user))
 
-(defn clean-http-info
+(defn clear-http-info
   "reset this thread's http info."
   (swap! @thread-storage dissoc :request))
 
@@ -303,7 +303,15 @@
 (defn make-http-info
   ([url method]
    {:url url
-    :method method}))
+    :method method})
+  ([url method headers query_string cookies data env]
+    {:url url
+     :method method
+     :headers headers
+     :query_string query_string
+     :cookies cookies
+     :data data
+     :env env}))
 
 (defn add-http-info!
   "Add HTTP information to the sentry context (or a thread-local storage)."
