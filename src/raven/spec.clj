@@ -34,6 +34,8 @@
 (s/def ::sever_name string?)
 (s/def ::culprit string?)
 (s/def ::platform is-valid-platform?)
+(s/def ::headers map?)
+(s/def ::env map?)
 (s/def ::breadcrumb (s/keys :req-un [::type ::timestamp ::level ::message ::category]))
 (s/def ::values (s/coll-of ::breadcrumb))
 (s/def ::breadcrumbs (s/keys :req-un [::values]))
