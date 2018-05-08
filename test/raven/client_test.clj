@@ -29,6 +29,9 @@
 (def expected-header
   (str "Sentry sentry_version=2.0, sentry_signature=" expected-sig ", sentry_timestamp=" frozen-ts ", sentry_client=spootnik-raven/0.1.4, sentry_key=" (:key expected-parsed-dsn)))
 
+(def expected-user-id
+  "Huginn")
+
 (def expected-payload
   {:level "error"
    :server_name frozen-servername
@@ -46,14 +49,14 @@
    :message "message"
    :category "category"})
 
-(defn reset-breadcrumbs
-  "A fixture to reset the per-thread atom to an empty list between tests.."
+(defn reset-storage
+  "A fixture to reset the per-thread atom between tests."
   [f]
   (do
     (f)
-    (clear-breadcrumbs)))
+    (clear-context)))
 
-(use-fixtures :each reset-breadcrumbs)
+(use-fixtures :each reset-storage)
 
 (deftest raven-client-tests
   (testing "parsing DSN"
@@ -101,3 +104,14 @@
   (testing "breadcrumbs are sent using a manual context."
     (let [context {:breadcrumbs [(make-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts)]}]
       (is (= expected-breadcrumb (first (:values (:breadcrumbs (payload context expected-message frozen-ts 42 frozen-uuid frozen-servername)))))))))
+
+(deftest add-user
+  (testing "user is added to the payload"
+    (do
+      (add-user! (make-user expected-user-id))
+      (is (= expected-user-id (:id (:user (payload @@thread-storage expected-message frozen-ts 42 frozen-uuid frozen-servername))))))))
+
+(deftest manual-user
+  (testing "user is sent using a manual context"
+    (let [context {:user (make-user expected-user-id)}]
+      (is (= expected-user-id (:id (:user (payload context expected-message frozen-ts 42 frozen-uuid frozen-servername))))))))
