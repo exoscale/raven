@@ -42,6 +42,9 @@
    :project 42
    :message expected-message})
 
+(def payload-validation-keys
+  [:level :server_name :culprit :timestamp :platform :event_id :project :message])
+
 (def expected-breadcrumb
   {:type "default"
    :timestamp frozen-ts
@@ -56,11 +59,23 @@
 (defn reset-storage
   "A fixture to reset the per-thread atom between tests."
   [f]
-  (do
-    (f)
-    (clear-context)))
+  (f)
+  (clear-context))
 
 (use-fixtures :each reset-storage)
+
+(defn assert-equal-for-key
+  [current-key payload reference]
+  (= (current-key payload) (current-key reference)))
+
+(defn check-payload
+  "Validate the payload against the expected payload."
+  [expected-payload payload]
+  (reduce #(and %1 %2) (map #(assert-equal-for-key % payload expected-payload) payload-validation-keys)))
+
+(defn make-test-payload
+  [context]
+  (payload context expected-message frozen-ts 42 frozen-uuid frozen-servername))
 
 (deftest raven-client-tests
   (testing "parsing DSN"
@@ -73,10 +88,13 @@
     (is (= (auth-header frozen-ts (:key expected-parsed-dsn) expected-sig) expected-header)))
 
   (testing "the payload is constructed from a map"
-    (is (= expected-payload (payload {} {:message expected-message} frozen-ts 42 frozen-uuid frozen-servername))))
+    (is (check-payload expected-payload (make-test-payload {}))))
 
   (testing "the payload is constructed from a string"
-    (is (= expected-payload (payload {} expected-message frozen-ts 42 frozen-uuid frozen-servername)))))
+    (is (check-payload expected-payload (make-test-payload {}))))
+
+  (testing "contexts are provided in the payload"
+    (is (= (get-contexts) (:contexts (make-test-payload {}))))))
 
 (deftest gather-breadcrumbs
   (testing "we can gather breadcrumbs"
@@ -88,46 +106,46 @@
   (testing "breadcrumbs are added to the payload"
     (do
       (add-breadcrumb! (make-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts))
-      (is (= expected-breadcrumb (first (:values (:breadcrumbs (payload @@thread-storage expected-message frozen-ts 42 frozen-uuid frozen-servername)))))))))
+      (is (= expected-breadcrumb (first (:values (:breadcrumbs (make-test-payload @@thread-storage)))))))))
 
 (deftest multi-breadcrumbs
   (testing "adding several breadcrumbs to the payload"
     (do
       (add-breadcrumb! (make-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts))
       (add-breadcrumb! (make-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts))
-      (is (= 2 (count (:values (:breadcrumbs (payload @@thread-storage expected-message frozen-ts 42 frozen-uuid frozen-servername)))))))))
+      (is (= 2 (count (:values (:breadcrumbs (make-test-payload @@thread-storage)))))))))
 
 (deftest multi-thread
   (testing "breadcrumbs are thread local"
     (do
       (add-breadcrumb! (make-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts))
       (add-breadcrumb! (make-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts))
-      (is (nil? @(future (:breadcrumbs (payload @@thread-storage expected-message frozen-ts 42 frozen-uuid frozen-servername))))))))
+      (is (nil? @(future (:breadcrumbs (make-test-payload @@thread-storage))))))))
 
 (deftest manual-context
   (testing "breadcrumbs are sent using a manual context."
     (let [context {:breadcrumbs [(make-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts)]}]
-      (is (= expected-breadcrumb (first (:values (:breadcrumbs (payload context expected-message frozen-ts 42 frozen-uuid frozen-servername)))))))))
+      (is (= expected-breadcrumb (first (:values (:breadcrumbs (make-test-payload context)))))))))
 
 (deftest add-user
   (testing "user is added to the payload"
     (do
       (add-user! (make-user expected-user-id))
-      (is (= expected-user-id (:id (:user (payload @@thread-storage expected-message frozen-ts 42 frozen-uuid frozen-servername))))))))
+      (is (= expected-user-id (:id (:user (make-test-payload @@thread-storage))))))))
 
 (deftest manual-user
   (testing "user is sent using a manual context"
     (let [context {:user (make-user expected-user-id)}]
-      (is (= expected-user-id (:id (:user (payload context expected-message frozen-ts 42 frozen-uuid frozen-servername))))))))
+      (is (= expected-user-id (:id (:user (make-test-payload context))))))))
 
 (deftest add-request
   (testing "http information is added to the payload"
     (do
       (add-http-info! (make-http-info (:url simple-http-info) (:method simple-http-info)))
-      (is (= simple-http-info (:request (payload @@thread-storage expected-message frozen-ts 42 frozen-uuid frozen-servername)))))))
+      (is (= simple-http-info (:request (make-test-payload @@thread-storage)))))))
 
 (deftest manual-request
   (testing "http information is sent using a manual context"
 
     (let [context {:request (make-http-info (:url simple-http-info) (:method simple-http-info))}]
-      (is (= simple-http-info (:request (payload context expected-message frozen-ts 42 frozen-uuid frozen-servername)))))))
+      (is (= simple-http-info (:request (make-test-payload context)))))))

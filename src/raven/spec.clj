@@ -41,6 +41,9 @@
 (s/def ::frame (s/keys :req-un [::filename ::lineno ::function]))
 (s/def ::values (s/coll-of ::breadcrumb))
 (s/def ::frames (s/coll-of ::frame))
+(s/def ::java (s/keys :req-un [::name ::version]))
+(s/def ::clojure (s/keys :req-un [::name ::version]))
+(s/def ::os (s/keys :req-un [::name ::version] :opt-un [::kernel_version]))
 
 ;; The sentry interfaces. We use the alias name instead of the full interface path
 ;; as suggested in https://docs.sentry.io/clientdev/interfaces/
@@ -49,7 +52,8 @@
 (s/def ::request (s/keys :req-un [::method ::url] :opt-un [::query_string ::cookies ::headers ::env ::data]))
 (s/def ::stacktrace (s/keys :req-un [::frames]))
 (s/def ::exception (s/keys :req-un [::value :raven.spec.stacktrace/type] :opt-un [::module ::thread_id ::stacktrace ::mechanism]))
+(s/def ::contexts (s/keys :req-un [::java ::clojure ::os]))
 
 ;; We declare the message spec in the raven.client namespace to allow easy
 ;; reference from there (simply "::payload" when using the spec).
-(s/def :raven.client/payload (s/keys :req-un [::event_id ::culprit ::level ::server_name ::timestamp ::platform] :opt-un [::breadcrumbs ::user ::request]))
+(s/def :raven.client/payload (s/keys :req-un [::event_id ::culprit ::level ::server_name ::timestamp ::platform ::contexts] :opt-un [::breadcrumbs ::user ::request]))

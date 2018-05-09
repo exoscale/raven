@@ -187,6 +187,32 @@
   [context payload]
   (cond-> payload (:request context) (assoc :request (:request context))))
 
+(defn get-os-name-linux
+  "Get a human-readable name for the current linux distribution using
+    lsb_release"
+  []
+  (or (str/trim-newline (:out (sh/sh "lsb_release" "-sd"))) "Unknown Linux"))
+
+(defn get-os-context
+  []
+  (let [os-name (System/getProperty "os.name")
+        os-version (System/getProperty "os.version")]
+    (if (re-find #"^Linux" os-name)
+      {:name os-name :version (get-os-name-linux) :kernel_version os-version}
+      {:name os-name :version os-version})))
+
+(defn get-contexts
+  []
+  {:java {:name (System/getProperty "java.vendor")
+          :version (System/getProperty "java.version")}
+   :os (get-os-context)
+   :clojure {:name "clojure" :version (clojure-version)}})
+
+(defn add-contexts-to-payload
+  "Add relevant bits of sentry.interfaces.Contexts to our payload."
+  [payload]
+  (assoc payload :contexts (get-contexts)))
+
 (defn validate-payload
   "Returns a validated payload."
   [merged]
@@ -202,6 +228,7 @@
         (breadcrumbs-adder)
         (user-adder)
         (http-info-adder)
+        (add-contexts-to-payload)
         (validate-payload))))
 
 (defn timestamp!
@@ -224,7 +251,7 @@
 
 (defn get-http-client
   "Get a http client given a context.
-    
+
     We expect callers to pass the http client in the context object at the
     :http key."
   [context]
@@ -255,7 +282,7 @@
 
 (defn make-breadcrumb!
   "Create a breadcrumb map.
-    
+
   level can be one of:
     ['debug' 'info' 'warning' 'warn' 'error' 'exception' 'critical' 'fatal']"
   ([message category]
