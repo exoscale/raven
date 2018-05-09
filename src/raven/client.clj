@@ -33,6 +33,11 @@
   []
   (swap! @thread-storage dissoc :user))
 
+(defn clear-fingerprint
+  "Reset this thread's fingerprint"
+  []
+  (swap! @thread-storage dissoc :fingerprint))
+
 (defn clear-context
   "Reset this thread's context"
   []
@@ -213,6 +218,11 @@
   [payload]
   (assoc payload :contexts (get-contexts)))
 
+(defn add-fingerprint-to-payload
+  "If the context provides a fingerprint override entry, pass it to the payload."
+  [context payload]
+  (cond-> payload (:fingerprint context) (assoc :fingerprint (:fingerprint context))))
+
 (defn validate-payload
   "Returns a validated payload."
   [merged]
@@ -223,10 +233,12 @@
   [context event ts pid uuid localhost]
   (let [breadcrumbs-adder (partial add-breadcrumbs-to-payload context)
         user-adder (partial add-user-to-payload context)
-        http-info-adder (partial add-http-info-to-payload context)]
+        http-info-adder (partial add-http-info-to-payload context)
+        fingerprint-adder (partial add-fingerprint-to-payload context)]
     (-> (merged-payload event ts pid uuid localhost)
         (breadcrumbs-adder)
         (user-adder)
+        (fingerprint-adder)
         (http-info-adder)
         (add-contexts-to-payload)
         (validate-payload))))
@@ -347,3 +359,10 @@
    (swap! @thread-storage add-http-info! http-info))
   ([context http-info]
    (assoc context :request http-info)))
+
+(defn add-fingerprint!
+  "Add a custom fingerprint to the context (or a thread-local storage."
+  ([fingerprint]
+   (swap! @thread-storage add-fingerprint! fingerprint))
+  ([context fingerprint]
+   (assoc context :fingerprint fingerprint)))
