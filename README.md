@@ -115,6 +115,24 @@ by this library.
 (capture! dsn (Exception.))
 ```
 
+### Testing
+
+#### Unit tests
+
+As usual in the clojure world, a simple `lein test` should run unit tests.
+
+#### Integration tests
+
+To ensure the results are correctly handled by Sentry and that this library
+produces correct JSON payloads, a simple integration test can be run with
+
+```bash
+DSN=http://... lein test :integration
+```
+
+This will publish a test event in the project associated with the DSN with as
+much test data as possible.
+
 ### Changelog
 
 #### unreleased

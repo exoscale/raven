@@ -8,4 +8,6 @@
                  [cheshire            "5.8.0"]
                  [org.flatland/useful "0.11.5"]]
   :plugins [[lein-cljfmt "0.5.7"]]
+  :test-selectors {:default (complement :integration-test)
+                   :integration :integration-test}
 )
