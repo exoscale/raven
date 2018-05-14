@@ -57,4 +57,4 @@
 
 ;; We declare the message spec in the raven.client namespace to allow easy
 ;; reference from there (simply "::payload" when using the spec).
-(s/def :raven.client/payload (s/keys :req-un [::event_id ::culprit ::level ::server_name ::timestamp ::platform ::contexts] :opt-un [::breadcrumbs ::user ::request ::fingerprint]))
+(s/def :raven.client/payload (s/keys :req-un [::event_id ::level ::server_name ::timestamp ::platform ::contexts] :opt-un [::breadcrumbs ::user ::request ::fingerprint ::culprit]))

@@ -35,11 +35,9 @@
 (def expected-payload
   {:level "error"
    :server_name frozen-servername
-   :culprit "<none>"
    :timestamp frozen-ts
    :platform "java"
    :event_id frozen-uuid
-   :project 42
    :message expected-message})
 
 (def payload-validation-keys
@@ -78,7 +76,7 @@
 
 (defn make-test-payload
   [context]
-  (payload context expected-message frozen-ts 42 frozen-uuid frozen-servername))
+  (payload context expected-message frozen-ts frozen-uuid frozen-servername))
 
 (deftest raven-client-tests
   (testing "parsing DSN"
@@ -162,3 +160,9 @@
   (testing "fingerprints are sent using a manual context"
     (let [context (add-fingerprint! {} expected-fingerprint)]
       (is (= expected-fingerprint (:fingerprint (make-test-payload context)))))))
+
+(deftest capture-with-subbing
+  (testing "we can capture payloads with in-memory stubbing."
+    (do
+      (capture! ":memory:" {:message "This is a stub message"})
+      (is (= "This is a stub message" (:message (first @http-requests-payload-stub)))))))

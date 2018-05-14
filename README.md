@@ -152,10 +152,30 @@ DSN=http://... lein test :integration
 This will publish a test event in the project associated with the DSN with as
 much test data as possible.
 
+#### Testing programs using this library
+
+In order to facilitate testing of programs using this library, a special
+":memory:" DSN is supported. When passed to this library in place of a real
+DSN, the payload map that would be sent to sentry in an HTTP request is instead
+stored in the `http-requests-payload-stub` atom.
+
+In your tests, you can assert that a Sentry payload conforming to your
+expectations would have been sent to the sentry server with:
+
+```clojure
+(do
+    (code-that-invokes-capture-once)
+    (is (= 1 (count @http-requests-payload-stub))))
+```
+
+Users are responsible for cleaning the atom up between test runs.
+
 ### Changelog
 
 #### unreleased
 
+- Added special ":memory:" DSN to allow easier testing of programs using this
+  library.
 - Added support for HTTP interface
 - Added support for User interface
 - Added support for Breadcrumbs interface
