@@ -61,7 +61,8 @@
   "A fixture to reset the per-thread atom between tests."
   [f]
   (f)
-  (clear-context))
+  (clear-context)
+  (clear-http-stub))
 
 (use-fixtures :each reset-storage)
 
@@ -76,7 +77,7 @@
 
 (defn make-test-payload
   [context]
-  (payload context expected-message frozen-ts frozen-uuid frozen-servername))
+  (payload context expected-message frozen-ts frozen-uuid frozen-servername {}))
 
 (deftest raven-client-tests
   (testing "parsing DSN"
@@ -99,29 +100,25 @@
 
 (deftest gather-breadcrumbs
   (testing "we can gather breadcrumbs"
-    (do
-      (add-breadcrumb! (make-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts))
-      (is (= [expected-breadcrumb] (:breadcrumbs @@thread-storage))))))
+    (add-breadcrumb! (make-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts))
+    (is (= [expected-breadcrumb] (:breadcrumbs @@thread-storage)))))
 
 (deftest add-breadcrumbs
   (testing "breadcrumbs are added to the payload"
-    (do
-      (add-breadcrumb! (make-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts))
-      (is (= expected-breadcrumb (first (:values (:breadcrumbs (make-test-payload @@thread-storage)))))))))
+    (add-breadcrumb! (make-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts))
+    (is (= expected-breadcrumb (first (:values (:breadcrumbs (make-test-payload @@thread-storage))))))))
 
 (deftest multi-breadcrumbs
   (testing "adding several breadcrumbs to the payload"
-    (do
-      (add-breadcrumb! (make-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts))
-      (add-breadcrumb! (make-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts))
-      (is (= 2 (count (:values (:breadcrumbs (make-test-payload @@thread-storage)))))))))
+    (add-breadcrumb! (make-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts))
+    (add-breadcrumb! (make-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts))
+    (is (= 2 (count (:values (:breadcrumbs (make-test-payload @@thread-storage))))))))
 
 (deftest multi-thread
   (testing "breadcrumbs are thread local"
-    (do
-      (add-breadcrumb! (make-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts))
-      (add-breadcrumb! (make-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts))
-      (is (nil? @(future (:breadcrumbs (make-test-payload @@thread-storage))))))))
+    (add-breadcrumb! (make-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts))
+    (add-breadcrumb! (make-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts))
+    (is (nil? @(future (:breadcrumbs (make-test-payload @@thread-storage)))))))
 
 (deftest manual-context
   (testing "breadcrumbs are sent using a manual context."
@@ -130,9 +127,8 @@
 
 (deftest add-user
   (testing "user is added to the payload"
-    (do
-      (add-user! (make-user expected-user-id))
-      (is (= expected-user-id (:id (:user (make-test-payload @@thread-storage))))))))
+    (add-user! (make-user expected-user-id))
+    (is (= expected-user-id (:id (:user (make-test-payload @@thread-storage)))))))
 
 (deftest manual-user
   (testing "user is sent using a manual context"
@@ -141,9 +137,8 @@
 
 (deftest add-request
   (testing "http information is added to the payload"
-    (do
-      (add-http-info! (make-http-info (:url simple-http-info) (:method simple-http-info)))
-      (is (= simple-http-info (:request (make-test-payload @@thread-storage)))))))
+    (add-http-info! (make-http-info (:url simple-http-info) (:method simple-http-info)))
+    (is (= simple-http-info (:request (make-test-payload @@thread-storage))))))
 
 (deftest manual-request
   (testing "http information is sent using a manual context"
@@ -152,9 +147,8 @@
 
 (deftest add-fingerprint
   (testing "fingerprints can be added to the payload"
-    (do
-      (add-fingerprint! expected-fingerprint)
-      (is (= expected-fingerprint (:fingerprint (make-test-payload @@thread-storage)))))))
+    (add-fingerprint! expected-fingerprint)
+    (is (= expected-fingerprint (:fingerprint (make-test-payload @@thread-storage))))))
 
 (deftest manual-fingerprint
   (testing "fingerprints are sent using a manual context"
@@ -163,6 +157,34 @@
 
 (deftest capture-with-subbing
   (testing "we can capture payloads with in-memory stubbing."
-    (do
-      (capture! ":memory:" {:message "This is a stub message"})
-      (is (= "This is a stub message" (:message (first @http-requests-payload-stub)))))))
+    (capture! ":memory:" {:message "This is a stub message"})
+    (is (= "This is a stub message" (:message (first @http-requests-payload-stub))))))
+
+(deftest capture-returns-uuid
+  (testing "capturing an event returns the event's uuid"
+    (let [out (capture! ":memory:" {:message "whatever"})]
+      (is (= 32 (count out)))
+      (is (string? out)))))
+
+(deftest capture-without-tags
+  (testing "we don't add a tags key if no tags are specified"
+    (capture! ":memory:" {:message "This is a stub message"})
+    (is (complement (contains? (first @http-requests-payload-stub) :tags)))))
+
+(deftest capture-with-inline-tags
+  (testing "tags are added if they are passed during capture"
+    (capture! ":memory:" {:message "This is a stub message"} {:feather_color "black"})
+    (is (= {:feather_color "black"} (:tags (first @http-requests-payload-stub))))))
+
+(deftest capture-with-context-tags
+  (testing "tags added by context are passed during capture"
+    (add-tag! :feather_color "black")
+    (capture! ":memory:" (Exception.))
+    (is (= {:feather_color "black"} (:tags (first @http-requests-payload-stub))))))
+
+(deftest capture-tags-override-context
+  (testing "tags added by context are overriden by inline tags"
+    (add-tag! :feather_color "black")
+    (capture! ":memory:" (Exception.) {:feather_color "svartur"})
+    (is (= {:feather_color "svartur"} (:tags (first @http-requests-payload-stub))))))
+

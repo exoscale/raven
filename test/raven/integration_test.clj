@@ -19,4 +19,4 @@
     (add-breadcrumb! (make-breadcrumb! "The user did something bad" "category.2" "error"))
     (add-user! (make-user "123456" "huginn@example.com" "127.0.0.1" "Huginn"))
     (add-http-info! http-info-map)
-    (capture! (get-dsn) (Exception. "Test exception"))))
+    (capture! (get-dsn) (Exception. "Test exception") {:arbitrary-tag "arbitrary-value"})))
