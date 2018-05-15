@@ -44,6 +44,7 @@
 (s/def ::java (s/keys :req-un [::name ::version]))
 (s/def ::clojure (s/keys :req-un [::name ::version]))
 (s/def ::os (s/keys :req-un [::name ::version] :opt-un [::kernel_version]))
+(s/def ::fingerprint (s/coll-of string?))
 
 ;; The sentry interfaces. We use the alias name instead of the full interface path
 ;; as suggested in https://docs.sentry.io/clientdev/interfaces/
@@ -56,4 +57,4 @@
 
 ;; We declare the message spec in the raven.client namespace to allow easy
 ;; reference from there (simply "::payload" when using the spec).
-(s/def :raven.client/payload (s/keys :req-un [::event_id ::culprit ::level ::server_name ::timestamp ::platform ::contexts] :opt-un [::breadcrumbs ::user ::request]))
+(s/def :raven.client/payload (s/keys :req-un [::event_id ::culprit ::level ::server_name ::timestamp ::platform ::contexts] :opt-un [::breadcrumbs ::user ::request ::fingerprint]))

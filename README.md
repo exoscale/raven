@@ -33,6 +33,8 @@ the (capture!) function through the `context` parameter, as :http.
 (capture! {:http (http/build-client {})} "<dsn>" "My message")
 ```
 
+### Extra interfaces
+
 #### Breadcrumbs
 
 Adding sentry "breadcrumbs" can be done using the `add-breadcrumb!` function,
@@ -100,6 +102,23 @@ helper function, with the following arities:
 
 More information about the HTTP interface can be found on [Sentry's
 documentation website](https://docs.sentry.io/clientdev/interfaces/http/).
+
+#### Fingerprints
+
+In cases where you do not send an exception, Sentry will try to group your
+message by looking at differences in interfaces. In some cases, this is not
+enough, and you will want to specify a particular grouping fingerprint, [as
+explained in this part of the Sentry documentation](https://docs.sentry.io/learn/rollups/#custom-grouping).
+
+To set a custom fingerprint for a particular event, this library provides the
+`add-fingerprint!` function with the following arities:
+
+- `(add-fingerprint! fingerprint)` Store the fingerprint in thread-local
+  storage.
+- `(add-fingerprint! context fingerprint)` Store the fingerprint in the
+  user-specified map-like context (expected to be passed to `capture!`).
+
+The contents of the :fingerprint entry is expected to be a list of strings.
 
 #### Full example
 
