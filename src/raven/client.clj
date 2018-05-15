@@ -23,6 +23,11 @@
   obtain an atom that is sure to be per-thread."
   (useful/thread-local (atom {})))
 
+(def http-requests-payload-stub
+  "Storage for stubbed http 'requests' - actually, we store just the request's
+  payload in clojure form (before it's serialized to JSON)."
+  (atom []))
+
 (defn clear-breadcrumbs
   "Reset this thread's breadcrumbs."
   []
@@ -150,12 +155,12 @@
 
 (defn default-payload
   "Provide default values for a payload."
-  [ts localhost]
+  [ts localhost uuid]
   {:level       "error"
    :server_name localhost
-   :culprit    "<none>"
    :timestamp   ts
-   :platform    "java"})
+   :platform    "java"
+   :event_id    uuid})
 
 (defn auth-header
   "Compute the Sentry auth header."
@@ -170,14 +175,12 @@
 
 (defn merged-payload
   "Return a payload map depending on the type of the event."
-  [event ts pid uuid localhost]
-  (merge (default-payload ts localhost)
+  [event ts uuid localhost]
+  (merge (default-payload ts localhost uuid)
          (cond
            (map? event)       event
            (exception? event) (exception->ev event)
-           :else              {:message (str event)})
-         {:event_id uuid
-          :project  pid}))
+           :else              {:message (str event)})))
 
 (defn add-breadcrumbs-to-payload
   [context payload]
@@ -230,12 +233,12 @@
 
 (defn payload
   "Build a full valid payload."
-  [context event ts pid uuid localhost]
+  [context event ts uuid localhost]
   (let [breadcrumbs-adder (partial add-breadcrumbs-to-payload context)
         user-adder (partial add-user-to-payload context)
         http-info-adder (partial add-http-info-to-payload context)
         fingerprint-adder (partial add-fingerprint-to-payload context)]
-    (-> (merged-payload event ts pid uuid localhost)
+    (-> (merged-payload event ts uuid localhost)
         (breadcrumbs-adder)
         (user-adder)
         (fingerprint-adder)
@@ -269,24 +272,37 @@
   [context]
   (or (:http context) (http/build-client {})))
 
+(defn perform-in-memory-request
+  "Perform an in-memory pseudo-request, actually just storing the payload on a storage
+    atom, to let users inspect/retrieve the payload in their tests."
+  [payload]
+  (swap! http-requests-payload-stub conj payload))
+
+(defn perform-http-request
+  [context dsn ts payload]
+  (let [json-payload  (json/generate-string payload)
+        {:keys [key secret uri pid]} (parse-dsn dsn)
+        sig                          (sign json-payload ts key secret)]
+    (http/request (get-http-client context)
+                  {:uri            (format "%s/api/store/" uri)
+                   :request-method :post
+                   :headers        {"X-Sentry-Auth" (auth-header ts key sig)
+                                    "User-Agent"    user-agent
+                                    "Content-Type"  "application/json"
+                                    "Content-Length" (count json-payload)}
+                   :transform      st/transform
+                   :body           json-payload})))
+
 (defn capture!
   "Send a capture over the network. If `ev` is an exception,
    build an appropriate payload for the exception."
   ([context dsn event]
-   (let [ts                           (timestamp!)
-         {:keys [key secret uri pid]} (parse-dsn dsn)
-         payload                      (json/generate-string (payload context event ts pid (random-uuid!) (localhost)))
-         sig                          (sign payload ts key secret)]
+   (let [ts (timestamp!)
+         payload (payload context event ts (random-uuid!) (localhost))]
      (do
-       (http/request (get-http-client context)
-                     {:uri            (format "%s/api/store/" uri pid)
-                      :request-method :post
-                      :headers        {"X-Sentry-Auth" (auth-header ts key sig)
-                                       "User-Agent"    user-agent
-                                       "Content-Type"  "application/json"
-                                       "Content-Length" (count payload)}
-                      :transform      st/transform
-                      :body           payload})
+       (if (= dsn ":memory:")
+         (perform-in-memory-request payload)
+         (perform-http-request context dsn ts payload))
        ;; Make sure we clear the local-storage.
        (clear-context))))
   ([dsn ev]
