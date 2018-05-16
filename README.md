@@ -1,8 +1,9 @@
+![An exoscale Raven](raven.png "An Exoscale Raven")
+
 raven: clojure sentry client library
 ====================================
 
 A Clojure library to send events to a sentry host.
-
 
 ### Usage
 
