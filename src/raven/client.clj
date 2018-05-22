@@ -28,6 +28,13 @@
   payload in clojure form (before it's serialized to JSON)."
   (atom []))
 
+(defn clear-http-stub
+  "A convenience function to clear the http stub.
+    
+    This stub is only used when passing a DSN of ':memory:' to the lib."
+  []
+  (swap! http-requests-payload-stub (fn [x] (vector))))
+
 (defn clear-breadcrumbs
   "Reset this thread's breadcrumbs."
   []
@@ -226,6 +233,10 @@
   [context payload]
   (cond-> payload (:fingerprint context) (assoc :fingerprint (:fingerprint context))))
 
+(defn add-tags-to-payload
+  [context payload tags]
+  (assoc payload :tags (merge (:tags context) tags)))
+
 (defn validate-payload
   "Returns a validated payload."
   [merged]
@@ -233,16 +244,18 @@
 
 (defn payload
   "Build a full valid payload."
-  [context event ts uuid localhost]
+  [context event ts uuid localhost tags]
   (let [breadcrumbs-adder (partial add-breadcrumbs-to-payload context)
         user-adder (partial add-user-to-payload context)
         http-info-adder (partial add-http-info-to-payload context)
-        fingerprint-adder (partial add-fingerprint-to-payload context)]
+        fingerprint-adder (partial add-fingerprint-to-payload context)
+        tags-adder (partial add-tags-to-payload context)]
     (-> (merged-payload event ts uuid localhost)
         (breadcrumbs-adder)
         (user-adder)
         (fingerprint-adder)
         (http-info-adder)
+        (tags-adder tags)
         (add-contexts-to-payload)
         (validate-payload))))
 
@@ -296,17 +309,20 @@
 (defn capture!
   "Send a capture over the network. If `ev` is an exception,
    build an appropriate payload for the exception."
-  ([context dsn event]
+  ([context dsn event tags]
    (let [ts (timestamp!)
-         payload (payload context event ts (random-uuid!) (localhost))]
-     (do
-       (if (= dsn ":memory:")
-         (perform-in-memory-request payload)
-         (perform-http-request context dsn ts payload))
+         uuid (random-uuid!)
+         payload (payload context event ts uuid (localhost) tags)]
+     (if (= dsn ":memory:")
+       (perform-in-memory-request payload)
+       (perform-http-request context dsn ts payload))
        ;; Make sure we clear the local-storage.
-       (clear-context))))
+     (clear-context)
+     uuid))
+  ([dsn ev tags]
+   (capture! @@thread-storage dsn ev tags))
   ([dsn ev]
-   (capture! @@thread-storage dsn ev)))
+   (capture! @@thread-storage dsn ev {})))
 
 (defn make-breadcrumb!
   "Create a breadcrumb map.
@@ -377,8 +393,15 @@
    (assoc context :request http-info)))
 
 (defn add-fingerprint!
-  "Add a custom fingerprint to the context (or a thread-local storage."
+  "Add a custom fingerprint to the context (or a thread-local storage)."
   ([fingerprint]
    (swap! @thread-storage add-fingerprint! fingerprint))
   ([context fingerprint]
    (assoc context :fingerprint fingerprint)))
+
+(defn add-tag!
+  "Add a custom tag to the context (or a thread-local storage)."
+  ([tag value]
+   (swap! @thread-storage add-tag! tag value))
+  ([context tag value]
+   (assoc-in context [:tags tag] value)))

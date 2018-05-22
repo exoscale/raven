@@ -11,15 +11,23 @@ A Clojure library to send events to a sentry host.
 [[spootnik/raven "0.1.4"]]
 ```
 
-The main exported function is `capture!` and has two arities:
+The main exported function is `capture!` and has three arities:
 
 - `(capture! dsn event)`: Send a capture over the network, see the description of DSN and ev below.
-- `(capture! context dsn event)`: Send a capture passing additional context, such as a specific HTTP client.
+- `(capture! dsn event tags)`: Send a capture passing an extra map of tags.
+- `(capture! context dsn event tags)`: Send a capture passing additional context, such as a specific HTTP client.
+
+The `capture!` function returns the Sentry Event ID.
+
+```clojure
+(println "Sentry event created" (capture! <dsn> (Exception.)))
+```
 
 #### Arguments
 
 - **DSN**: A Sentry DSN as defined http://sentry.readthedocs.org/en/2.9.0/client/index.html#parsing-the-dsn
 - **Event**: Either an exception or a map.
+- **Tags**: A map of extra information to be sent (as Sentry "tags").
 - **Context**: A map of additional information you can pass to Sentry. Note
   that omitting this parameter will make use of some thread-local storage for
   some of the functionality.
@@ -35,6 +43,19 @@ the (capture!) function through the `context` parameter, as :http.
 ```
 
 ### Extra interfaces
+
+#### Tags
+
+On top of being able to set tags at capture time, it is possible to add extra
+tags using the `add-tag!` function, declaring the following arity:
+
+- `(add-tag! tag value)` Adds a tag entry with the specified tag name and
+  value to a thread-local storage.
+- `(add-tag! context tag value)` Adds a specified tag in a user-specified
+  context. Context is expected to be map-like.
+
+Tags specified this way will be overwritten by tag specified as part of the
+`(capture!)` call.
 
 #### Breadcrumbs
 
@@ -132,7 +153,8 @@ by this library.
 (add-breadcrumb! (make-breadcrumb! "The user did something wrong" "com.example.Foo" "error"))
 (add-user! (make-user "user-id" "test@example.com" "127.0.0.1" "username"))
 (add-http-info! (make-http-info "http://example.com/mypage" "GET"))
-(capture! dsn (Exception.))
+(add-tag! :my_custom_tag "some value")
+(capture! dsn (Exception.) {:another_tag "another value"})
 ```
 
 ### Testing
@@ -169,7 +191,8 @@ expectations would have been sent to the sentry server with:
     (is (= 1 (count @http-requests-payload-stub))))
 ```
 
-Users are responsible for cleaning the atom up between test runs.
+Users are responsible for cleaning the atom up between test runs, for example
+using the `clear-http-stub` convenience function.
 
 ### Changelog
 
