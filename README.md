@@ -196,10 +196,11 @@ using the `clear-http-stub` convenience function.
 
 ### Changelog
 
-#### unreleased
+#### 0.2.0
 
 - Added special ":memory:" DSN to allow easier testing of programs using this
   library.
+- Added support for custom tags
 - Added support for HTTP interface
 - Added support for User interface
 - Added support for Breadcrumbs interface

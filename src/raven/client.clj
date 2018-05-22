@@ -112,7 +112,7 @@
 
 (def user-agent
   "Our advertized UA"
-  "spootnik-raven/0.1.4")
+  "exoscale-raven/0.2.0")
 
 (defn random-uuid!
   "A random UUID, without dashes"
