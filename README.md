@@ -8,7 +8,7 @@ A Clojure library to send events to a sentry host.
 ### Usage
 
 ```clojure
-[[spootnik/raven "0.1.4"]]
+[[exoscale/raven "0.2.0"]]
 ```
 
 The main exported function is `capture!` and has three arities:
