@@ -48,6 +48,7 @@
 
 ;; The sentry interfaces. We use the alias name instead of the full interface path
 ;; as suggested in https://docs.sentry.io/clientdev/interfaces/
+;; Those are also used to validate input from the library users.
 (s/def ::breadcrumbs (s/keys :req-un [::values]))
 (s/def ::user (s/keys :req-un [::id] :opt-un [::username ::email ::ip_address]))
 (s/def ::request (s/keys :req-un [::method ::url] :opt-un [::query_string ::cookies ::headers ::env ::data]))
@@ -55,6 +56,5 @@
 (s/def ::exception (s/keys :req-un [::value :raven.spec.stacktrace/type] :opt-un [::module ::thread_id ::stacktrace ::mechanism]))
 (s/def ::contexts (s/keys :req-un [::java ::clojure ::os]))
 
-;; We declare the message spec in the raven.client namespace to allow easy
-;; reference from there (simply "::payload" when using the spec).
-(s/def :raven.client/payload (s/keys :req-un [::event_id ::level ::server_name ::timestamp ::platform ::contexts] :opt-un [::breadcrumbs ::user ::request ::fingerprint ::culprit]))
+;; The main payload spec.
+(s/def ::payload (s/keys :req-un [::event_id ::level ::server_name ::timestamp ::platform ::contexts] :opt-un [::breadcrumbs ::user ::request ::fingerprint ::culprit]))

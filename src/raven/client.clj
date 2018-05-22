@@ -240,7 +240,7 @@
 (defn validate-payload
   "Returns a validated payload."
   [merged]
-  (s/assert ::payload merged))
+  (s/assert :raven.spec/payload merged))
 
 (defn payload
   "Build a full valid payload."
@@ -353,7 +353,7 @@
    (swap! @thread-storage add-breadcrumb! breadcrumb))
   ([context breadcrumb]
    ;; We add the breadcrumb to the context instead, in a ":breadcrumb" key.
-   (update context :breadcrumbs conj breadcrumb)))
+   (update context :breadcrumbs conj (s/assert :raven.spec/breadcrumb breadcrumb))))
 
 (defn make-user
   "Create a user map."
@@ -370,7 +370,7 @@
   ([user]
    (swap! @thread-storage add-user! user))
   ([context user]
-   (assoc context :user user)))
+   (assoc context :user (s/assert :raven.spec/user user))))
 
 (defn make-http-info
   ([url method]
@@ -390,14 +390,14 @@
   ([http-info]
    (swap! @thread-storage add-http-info! http-info))
   ([context http-info]
-   (assoc context :request http-info)))
+   (assoc context :request (s/assert :raven.spec/request http-info))))
 
 (defn add-fingerprint!
   "Add a custom fingerprint to the context (or a thread-local storage)."
   ([fingerprint]
    (swap! @thread-storage add-fingerprint! fingerprint))
   ([context fingerprint]
-   (assoc context :fingerprint fingerprint)))
+   (assoc context :fingerprint (s/assert :raven.spec/fingerprint fingerprint))))
 
 (defn add-tag!
   "Add a custom tag to the context (or a thread-local storage)."
