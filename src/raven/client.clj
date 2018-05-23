@@ -50,28 +50,24 @@
   []
   (swap! @thread-storage dissoc :fingerprint))
 
-(defn clear-context
-  "Reset this thread's context"
-  []
-  (clear-user)
-  (clear-breadcrumbs))
-
-(defn clear-user
-  "Reset this thread's user."
-  []
-  (swap! @thread-storage dissoc :user))
-
 (defn clear-http-info
-  "reset this thread's http info."
+  "Reset this thread's HTTP info."
   []
   (swap! @thread-storage dissoc :request))
+
+(defn clear-tag
+  "Reset this thread's tags."
+  []
+  (swap! @thread-storage dissoc :tags))
 
 (defn clear-context
   "Reset this thread's context"
   []
   (clear-user)
   (clear-breadcrumbs)
-  (clear-http-info))
+  (clear-http-info)
+  (clear-fingerprint)
+  (clear-tag))
 
 (defn md5
   [^String x]
@@ -234,8 +230,14 @@
   (cond-> payload (:fingerprint context) (assoc :fingerprint (:fingerprint context))))
 
 (defn add-tags-to-payload
+  "If the context provides tags or we were given tags directly during capture!,
+  ad them to the payload. Tags provided by capture! override tags provided by the
+  context map."
   [context payload tags]
-  (assoc payload :tags (merge (:tags context) tags)))
+  (let [merged (merge (:tags context) tags)]
+    (cond->
+     payload
+      (not (empty? merged)) (assoc :tags merged))))
 
 (defn validate-payload
   "Returns a validated payload."
@@ -385,12 +387,53 @@
     :data data
     :env env}))
 
+(defn get-full-ring-url
+  "Given a ring compliant request object, return the full URL.
+    This was lifted from ring's source code so as to not depend on it."
+  [request]
+  (str (-> request :scheme name)
+       "://"
+       (get-in request [:headers "host"])
+       (:uri request)
+       (when-let [query (:query-string request)]
+         (str "?" query))))
+
+(defn get-ring-env
+  [request]
+  (cond-> {:REMOTE_ADDR (:remote-addr request)
+           :websocket? (:websocket? request)
+           :route-params (:route-params request)
+           :params (:params request)}
+    (some? (:compojure/route request)) (assoc :compojure/route (:compojure/route request))
+    (some? (:route request)) (assoc :bidi/route (get-in request [:route :handler]))))
+
+(defn make-ring-request-info
+  "Create well-formatted context map for the Sentry 'HTTP' interface by
+    extracting the information from a standard ring-compliant 'request', as
+    defined in https://github.com/ring-clojure/ring/wiki/Concepts#requests"
+  [request]
+  {:url (get-full-ring-url request)
+   :method (:request-method request)
+   :cookies (get-in request [:headers "cookie"])
+   :headers (:headers request)
+   :query_string (:query-string request)
+   :data (:body request)
+   :env (get-ring-env request)})
+
 (defn add-http-info!
   "Add HTTP information to the sentry context (or a thread-local storage)."
   ([http-info]
    (swap! @thread-storage add-http-info! http-info))
   ([context http-info]
    (assoc context :request (s/assert :raven.spec/request http-info))))
+
+(defn add-ring-request!
+  "Add HTTP information to the Sentry payload from a ring-compliant request
+    map."
+  ([request]
+   (add-http-info! (make-ring-request-info request)))
+  ([context request]
+   (add-http-info! context (make-ring-request-info request))))
 
 (defn add-fingerprint!
   "Add a custom fingerprint to the context (or a thread-local storage)."

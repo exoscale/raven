@@ -106,14 +106,17 @@ More information can be found on [Sentry's documentation website](https://docs.s
 
 As for Users, Sentry supports adding information about the HTTP request that
 resulted in the captured exception. To fill in that information this library
-provides a `add-http-info!` function with the following arities:
+provides an `add-ring-request!` function with the following arities:
 
-- `(add-http-info! info)` Store the HTTP information in thread-local storage.
-- `(add-http-info! context info)` Store the HTTP information in the
-user-specified map-like context (expected to be ultimately passed to `(capture!)`).
+- `(add-ring-request! ring-request)` Extract the required information from the
+    supplied ring-compatible request map, and store the result in thread-local
+    storage for future delivery with a call to `(capture!)`
+- `(add-ring-request! context ring-request)` Store the HTTP information
+   extracted from the passed ring-compatible request in the user-specified
+   map-like context (expected to be ultimately passed to `(capture!)`).
 
-Well formatted HTTP information maps can be created with the `make-http-info`
-helper function, with the following arities:
+Well formatted HTTP information maps can otherwise be created with the
+`make-http-info` helper function, with the following arities:
 
 - `(make-http-info url method)` A simple HTTP info map with only required
   fields (the request's URL and method) is created.
@@ -121,6 +124,22 @@ helper function, with the following arities:
   map with all the "special" fields recognised by Sentry. Additional fields can
   be added to the created HTTP map if desired, and will simply show up in the
   interface as extra fields.
+
+Those maps can be passed to the Sentry context using the `add-http-info!`
+function, with the following arities:
+
+- `(add-http-info! info)` Store the HTTP information in thread-local storage.
+- `(add-http-info! context info)` Store the HTTP information in the
+    user-specified map-like context (expected to be ultimately passed to `(capture!)`).
+
+Example:
+
+```clojure
+(add-ring-request! ring-request)
+(capture! <dsn> "First capture")
+(add-http-info! (make-http-info "http://example.com" :get))
+(capture! <dsn> "Second capture")
+```
 
 More information about the HTTP interface can be found on [Sentry's
 documentation website](https://docs.sentry.io/clientdev/interfaces/http/).
@@ -152,7 +171,7 @@ by this library.
 (add-breadcrumb! (make-breadcrumb! "The user did something" "com.example.Foo"))
 (add-breadcrumb! (make-breadcrumb! "The user did something wrong" "com.example.Foo" "error"))
 (add-user! (make-user "user-id" "test@example.com" "127.0.0.1" "username"))
-(add-http-info! (make-http-info "http://example.com/mypage" "GET"))
+(add-ring-request! ring-request)
 (add-tag! :my_custom_tag "some value")
 (capture! dsn (Exception.) {:another_tag "another value"})
 ```
@@ -195,6 +214,10 @@ Users are responsible for cleaning the atom up between test runs, for example
 using the `clear-http-stub` convenience function.
 
 ### Changelog
+
+#### Unreleased
+
+- Helper to create HTTP payloads from ring-compliant request maps
 
 #### 0.2.0
 
