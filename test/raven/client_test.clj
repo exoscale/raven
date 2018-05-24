@@ -23,6 +23,34 @@
 (def frozen-servername
   "Muninn")
 
+(def frozen-request
+  "A frozen Ring request object"
+  {:remote-addr "127.0.0.1"
+   :params {}
+   :route-params {},
+   :headers {"accept" "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+             "accept-encoding" "gzip, deflate"
+             "accept-language" "en-GB,en;q=0.5"
+             "connection" "keep-alive"
+             "cookie" "csrftoken=somecsrfcookie; blah=something"
+             "host" "localhost:8080"
+             "upgrade-insecure-requests" "1"
+             "user-agent" "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:60.0) Gecko/20100101 Firefox/60.0"}
+   :server-port 8080
+   :content-length 0
+   :websocket? false
+   :content-type nil
+   :character-encoding "utf8"
+   :uri "/example"
+   :server-name "localhost"
+   :query-string nil
+   :body nil
+   :scheme :http
+   :request-method :get})
+
+(def expected-test-url
+  "http://localhost:8080/example")
+
 (def expected-message
   "a test message")
 
@@ -94,6 +122,9 @@
 
   (testing "the payload is constructed from a string"
     (is (check-payload expected-payload (make-test-payload {}))))
+
+  (testing "getting a full ring URL"
+    (is (= expected-test-url (get-full-ring-url frozen-request))))
 
   (testing "contexts are provided in the payload"
     (is (= (get-contexts) (:contexts (make-test-payload {}))))))
@@ -169,7 +200,12 @@
 (deftest capture-without-tags
   (testing "we don't add a tags key if no tags are specified"
     (capture! ":memory:" {:message "This is a stub message"})
-    (is (complement (contains? (first @http-requests-payload-stub) :tags)))))
+    (is (not (contains? (first @http-requests-payload-stub) :tags)))))
+
+(deftest capture-without-users
+  (testing "we don't add a user key if no user is specified"
+    (capture! ":memory:" {:message "This is a stub message"})
+    (is (not (contains? (first @http-requests-payload-stub) :user)))))
 
 (deftest capture-with-inline-tags
   (testing "tags are added if they are passed during capture"
@@ -188,3 +224,29 @@
     (capture! ":memory:" (Exception.) {:feather_color "svartur"})
     (is (= {:feather_color "svartur"} (:tags (first @http-requests-payload-stub))))))
 
+(deftest ring-request-composure
+  (testing "passing a ring request to Sentry with compojure"
+    (add-http-info! (make-ring-request-info (assoc frozen-request :compojure/route [:get "/example"])))
+    (capture! ":memory:" expected-message)
+    (is (= (:url (:request (first @http-requests-payload-stub))) expected-test-url))
+    (is (= (get-in (first @http-requests-payload-stub) [:request :env :compojure/route]) [:get "/example"]))))
+
+(deftest ring-request-no-composure
+  (testing "passing a ring request to Sentry with no compojure"
+    (add-http-info! (make-ring-request-info frozen-request))
+    (capture! ":memory:" expected-message)
+    (is (= (:url (:request (first @http-requests-payload-stub))) expected-test-url))
+    (is (= (get-in (first @http-requests-payload-stub) [:request :env :compojure/route]) nil))))
+
+(deftest ring-request-query-string
+  (testing "passing a ring request to Sentry with a query string"
+    (add-http-info! (make-ring-request-info (assoc frozen-request :query-string "name=munnin")))
+    (capture! ":memory:" expected-message)
+    (is (= (:url (:request (first @http-requests-payload-stub))) (str expected-test-url "?name=munnin")))
+    (is (= (get-in (first @http-requests-payload-stub) [:request :query_string]) "name=munnin"))))
+
+(deftest composed-ring-request
+  (testing "the composition add-ring-request! adds a ring request to the payload"
+    (add-ring-request! frozen-request)
+    (capture! ":memory:" expected-message)
+    (is (= (:url (:request (first @http-requests-payload-stub))) expected-test-url))))
