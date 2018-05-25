@@ -30,44 +30,15 @@
 
 (defn clear-http-stub
   "A convenience function to clear the http stub.
-    
+
     This stub is only used when passing a DSN of ':memory:' to the lib."
   []
   (swap! http-requests-payload-stub (fn [x] (vector))))
 
-(defn clear-breadcrumbs
-  "Reset this thread's breadcrumbs."
-  []
-  (swap! @thread-storage dissoc :breadcrumbs))
-
-(defn clear-user
-  "Reset this thread's user."
-  []
-  (swap! @thread-storage dissoc :user))
-
-(defn clear-fingerprint
-  "Reset this thread's fingerprint"
-  []
-  (swap! @thread-storage dissoc :fingerprint))
-
-(defn clear-http-info
-  "Reset this thread's HTTP info."
-  []
-  (swap! @thread-storage dissoc :request))
-
-(defn clear-tag
-  "Reset this thread's tags."
-  []
-  (swap! @thread-storage dissoc :tags))
-
 (defn clear-context
   "Reset this thread's context"
   []
-  (clear-user)
-  (clear-breadcrumbs)
-  (clear-http-info)
-  (clear-fingerprint)
-  (clear-tag))
+  (swap! @thread-storage (fn [x] {})))
 
 (defn md5
   [^String x]
@@ -110,7 +81,7 @@
   "Our advertized UA"
   "exoscale-raven/0.2.0")
 
-(defn random-uuid!
+(defn sentry-uuid!
   "A random UUID, without dashes"
   []
   (str/replace (str (java.util.UUID/randomUUID)) "-" ""))
@@ -158,12 +129,11 @@
 
 (defn default-payload
   "Provide default values for a payload."
-  [ts localhost uuid]
+  [ts localhost]
   {:level       "error"
    :server_name localhost
    :timestamp   ts
-   :platform    "java"
-   :event_id    uuid})
+   :platform    "java"})
 
 (defn auth-header
   "Compute the Sentry auth header."
@@ -178,8 +148,8 @@
 
 (defn merged-payload
   "Return a payload map depending on the type of the event."
-  [event ts uuid localhost]
-  (merge (default-payload ts localhost uuid)
+  [event ts localhost]
+  (merge (default-payload ts localhost)
          (cond
            (map? event)       event
            (exception? event) (exception->ev event)
@@ -239,6 +209,10 @@
      payload
       (not (empty? merged)) (assoc :tags merged))))
 
+(defn add-uuid-to-payload
+  [context payload]
+  (assoc payload :event_id (:event_id context (:event_id payload (sentry-uuid!)))))
+
 (defn validate-payload
   "Returns a validated payload."
   [merged]
@@ -246,13 +220,15 @@
 
 (defn payload
   "Build a full valid payload."
-  [context event ts uuid localhost tags]
+  [context event ts localhost tags]
   (let [breadcrumbs-adder (partial add-breadcrumbs-to-payload context)
         user-adder (partial add-user-to-payload context)
         http-info-adder (partial add-http-info-to-payload context)
         fingerprint-adder (partial add-fingerprint-to-payload context)
-        tags-adder (partial add-tags-to-payload context)]
-    (-> (merged-payload event ts uuid localhost)
+        tags-adder (partial add-tags-to-payload context)
+        uuid-adder (partial add-uuid-to-payload context)]
+    (-> (merged-payload event ts localhost)
+        (uuid-adder)
         (breadcrumbs-adder)
         (user-adder)
         (fingerprint-adder)
@@ -283,9 +259,9 @@
   "Get a http client given a context.
 
     We expect callers to pass the http client in the context object at the
-    :http key."
+    :http_client key."
   [context]
-  (or (:http context) (http/build-client {})))
+  (or (:http_client context) (http/build-client {})))
 
 (defn perform-in-memory-request
   "Perform an in-memory pseudo-request, actually just storing the payload on a storage
@@ -313,12 +289,12 @@
    build an appropriate payload for the exception."
   ([context dsn event tags]
    (let [ts (timestamp!)
-         uuid (random-uuid!)
-         payload (payload context event ts uuid (localhost) tags)]
+         payload (payload context event ts (localhost) tags)
+         uuid (:event_id payload)]
      (if (= dsn ":memory:")
        (perform-in-memory-request payload)
        (perform-http-request context dsn ts payload))
-       ;; Make sure we clear the local-storage.
+     ;; Make sure we clear the local-storage.
      (clear-context)
      uuid))
   ([dsn ev tags]
@@ -448,3 +424,10 @@
    (swap! @thread-storage add-tag! tag value))
   ([context tag value]
    (assoc-in context [:tags tag] value)))
+
+(defn add-exception!
+  "Add an exception to the context (or a thread-local storage)."
+  ([^Throwable e]
+   (swap! @thread-storage add-exception! e))
+  ([context ^Throwable e]
+   (merge context (exception->ev e))))
