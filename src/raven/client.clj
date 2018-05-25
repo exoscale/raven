@@ -273,8 +273,12 @@
   [context dsn ts payload]
   (let [json-payload  (json/generate-string payload)
         {:keys [key secret uri pid]} (parse-dsn dsn)
-        sig                          (sign json-payload ts key secret)]
-    (http/request (get-http-client context)
+        sig                          (sign json-payload ts key secret)
+        p (promise)]
+    ;; This is async, but we don't wait for the result since we don't really care if the
+    ;; event makes it to the sentry server or not (we certainly don't want to block until
+    ;; it fails).
+    (http/async-request (get-http-client context)
                   {:uri            (format "%s/api/store/" uri)
                    :request-method :post
                    :headers        {"X-Sentry-Auth" (auth-header ts key sig)
@@ -282,7 +286,8 @@
                                     "Content-Type"  "application/json"
                                     "Content-Length" (count json-payload)}
                    :transform      st/transform
-                   :body           json-payload})))
+                   :body           json-payload}
+                  (constantly nil)))) ;; Noop
 
 (defn capture!
   "Send a capture over the network. If `ev` is an exception,

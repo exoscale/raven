@@ -226,6 +226,7 @@ using the `clear-http-stub` convenience function.
 
 #### Unreleased
 
+- Made the client async by default, "fire and forget".
 - Added an add-exception! helper to allow building payload by threading
 - Allow passing event_id through payload or context
 - Helper to create HTTP payloads from ring-compliant request maps
