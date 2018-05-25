@@ -79,7 +79,7 @@
 
 (def user-agent
   "Our advertized UA"
-  "exoscale-raven/0.2.0")
+  "exoscale-raven/0.3.0")
 
 (defn sentry-uuid!
   "A random UUID, without dashes"
