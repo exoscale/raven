@@ -105,7 +105,7 @@
 
 (defn make-test-payload
   [context]
-  (payload context expected-message frozen-ts frozen-uuid frozen-servername {}))
+  (payload (assoc context :event_id frozen-uuid) expected-message frozen-ts frozen-servername {}))
 
 (deftest raven-client-tests
   (testing "parsing DSN"
@@ -250,3 +250,20 @@
     (add-ring-request! frozen-request)
     (capture! ":memory:" expected-message)
     (is (= (:url (:request (first @http-requests-payload-stub))) expected-test-url))))
+
+(deftest top-level-copmosition
+  (testing "ee can produce nice events by threading top-level functions"
+    (capture! ":memory:" (-> {}
+                             (add-user! (make-user expected-user-id))
+                             (add-ring-request! frozen-request)
+                             (add-exception! (Exception.))
+                             (add-tag! :feather_color "black")))
+    (is (= (:url (:request (first @http-requests-payload-stub))) expected-test-url))
+    (is (= {:feather_color "black"} (:tags (first @http-requests-payload-stub))))
+    (is (= expected-user-id (:id (:user (first @http-requests-payload-stub)))))))
+
+(deftest passing-sentry-id
+  (testing "passing an outside sentry ID will forward it to the server"
+    (capture! ":memory:" (-> {:event_id "abcd"}
+                             (add-exception! (Exception.))))
+    (is (= "abcd" (:event_id (first @http-requests-payload-stub))))))

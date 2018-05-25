@@ -19,4 +19,7 @@
     (add-breadcrumb! (make-breadcrumb! "The user did something bad" "category.2" "error"))
     (add-user! (make-user "123456" "huginn@example.com" "127.0.0.1" "Huginn"))
     (add-http-info! http-info-map)
-    (capture! (get-dsn) (Exception. "Test exception") {:arbitrary-tag "arbitrary-value"})))
+    (capture! (get-dsn) (Exception. "Test exception") {:arbitrary-tag "arbitrary-value"})
+    ;; We sleep for a second since otherwise the process dies before the request had time to fly out
+    ;; to sentry (since it's asynchronous and therefore doesn't block the main thread).
+    (Thread/sleep 1000)))

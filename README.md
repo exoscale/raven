@@ -164,7 +164,7 @@ The contents of the :fingerprint entry is expected to be a list of strings.
 #### Full example
 
 The following examples send Sentry a payload with all extra interfaces provided
-by this library.
+by this library, using the thread-local storage.
 
 ```clojure
 (def dsn "https://098f6bcd4621d373cade4e832627b4f6:ad0234829205b9033196ba818f7a872b@sentry.example.com/42")
@@ -174,6 +174,15 @@ by this library.
 (add-ring-request! ring-request)
 (add-tag! :my_custom_tag "some value")
 (capture! dsn (Exception.) {:another_tag "another value"})
+```
+
+Alternatively you can compose and send a valid payload using something like the following:
+
+```clojure
+(capture! dsn (-> {} (add-exception! e)
+                     (add-user! (make-user "user-id")
+                     (add-ring-request! ring-request)
+                     (add-tag! :my_custom_tag "some value"))
 ```
 
 ### Testing
@@ -217,6 +226,9 @@ using the `clear-http-stub` convenience function.
 
 #### Unreleased
 
+- Made the client async by default, "fire and forget".
+- Added an add-exception! helper to allow building payload by threading
+- Allow passing event_id through payload or context
 - Helper to create HTTP payloads from ring-compliant request maps
 
 #### 0.2.0
