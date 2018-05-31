@@ -178,8 +178,8 @@
     lsb_release"
   []
   (or (System/getenv "OSVERSION")
-      (str/trim-newline (:out (or (safe-sh "lsb_release" "-sd")
-                                  "Unknown Linux")))))
+      (str/trim-newline (or (:out (safe-sh "lsb_release" "-sd"))
+                            "Unknown Linux"))))
 
 (let [cache (atom nil)]  ;; cache version forever
   (defn get-os-name-linux
