@@ -90,6 +90,11 @@
   "How often to allow shelling out to hostname (1), in seconds. (stolen from riemann)"
   60)
 
+(defn safe-sh
+  [& args]
+  (try (apply sh/sh args)
+       (catch Exception _)))
+
 (defn hostname
   "Fetches the hostname by shelling out to hostname (1), whenever the given age
   is stale enough. If the given age is recent, as defined by
@@ -99,7 +104,7 @@
                    (- (System/currentTimeMillis) age)))
     [age val]
     [(System/currentTimeMillis)
-     (let [{:keys [exit out]} (sh/sh "hostname")]
+     (let [{:keys [exit out]} (or (safe-sh "hostname") "<unknown>")]
        (if (= exit 0)
          (str/trim out)))]))
 
@@ -168,11 +173,21 @@
   [context payload]
   (cond-> payload (:request context) (assoc :request (:request context))))
 
-(defn get-os-name-linux
+(defn resolve-os-name-linux
   "Get a human-readable name for the current linux distribution using
     lsb_release"
   []
-  (or (str/trim-newline (:out (sh/sh "lsb_release" "-sd"))) "Unknown Linux"))
+  (or (System/getenv "OSVERSION")
+      (str/trim-newline (:out (safe-sh "lsb_release" "-sd")))
+      "Unknown Linux"))
+
+(let [cache (atom nil)]  ;; cache version forever
+  (defn get-os-name-linux
+    "Get a human-readable name for the current linux distribution using
+    lsb_release, caching the output"
+    []
+    (or @cache
+        (swap! cache (constantly resolve-os-name-linux)))))
 
 (defn get-os-context
   []
