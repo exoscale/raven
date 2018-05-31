@@ -187,7 +187,7 @@
     lsb_release, caching the output"
     []
     (or @cache
-        (swap! cache (constantly resolve-os-name-linux)))))
+        (swap! cache (constantly (resolve-os-name-linux))))))
 
 (defn get-os-context
   []
