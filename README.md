@@ -8,7 +8,7 @@ A Clojure library to send events to a sentry host.
 ### Usage
 
 ```clojure
-[[exoscale/raven "0.3.1"]]
+[[exoscale/raven "0.3.3"]]
 ```
 
 The main exported function is `capture!` and has three arities:
@@ -223,6 +223,10 @@ Users are responsible for cleaning the atom up between test runs, for example
 using the `clear-http-stub` convenience function.
 
 ### Changelog
+
+#### 0.3.3
+
+- Fix behavior on empty lsb_release string
 
 #### 0.3.1
 
