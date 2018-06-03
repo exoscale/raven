@@ -4,8 +4,8 @@
   :license {:name "MIT License"}
   :profiles {:dev {:global-vars {*warn-on-reflection* true}}}
   :dependencies [[org.clojure/clojure "1.9.0"]
-                 [spootnik/net        "0.3.3-beta24"]
-                 [cheshire            "5.8.0"]
+                 [aleph               "0.4.4"]
+                 [metosin/jsonista    "0.2.1"]
                  [org.flatland/useful "0.11.5"]]
   :plugins [[lein-cljfmt "0.5.7"]]
   :test-selectors {:default (complement :integration-test)

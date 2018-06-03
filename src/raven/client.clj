@@ -3,14 +3,12 @@
   (:import java.lang.Throwable
            java.lang.Exception
            java.lang.StackTraceElement)
-  (:require [net.http.client    :as http]
-            [cheshire.core      :as json]
-            [clojure.string     :as str]
-            [clojure.spec.alpha :as s]
-            [net.codec.b64      :as b64]
-            [net.transform.string :as st]
-            [clojure.java.shell :as sh]
-            [raven.spec :as spec]
+  (:require [aleph.http            :as http]
+            [jsonista.core         :as json]
+            [clojure.string        :as str]
+            [clojure.spec.alpha    :as s]
+            [clojure.java.shell    :as sh]
+            [raven.spec            :as spec]
             [flatland.useful.utils :as useful]))
 
 ;; Make sure we enforce spec assertions.
@@ -270,14 +268,6 @@
                 (.doFinal (.getBytes (format "%s %s" ts payload))))]
     (reduce str (for [b bs] (format "%02x" b)))))
 
-(defn get-http-client
-  "Get a http client given a context.
-
-    We expect callers to pass the http client in the context object at the
-    :http_client key."
-  [context]
-  (or (:http_client context) (http/build-client {})))
-
 (defn perform-in-memory-request
   "Perform an in-memory pseudo-request, actually just storing the payload on a storage
     atom, to let users inspect/retrieve the payload in their tests."
@@ -286,23 +276,17 @@
 
 (defn perform-http-request
   [context dsn ts payload]
-  (let [json-payload  (json/generate-string payload)
+  (let [json-payload                 (json/write-value-as-string payload)
         {:keys [key secret uri pid]} (parse-dsn dsn)
-        sig                          (sign json-payload ts key secret)
-        p (promise)]
+        sig                          (sign json-payload ts key secret)]
     ;; This is async, but we don't wait for the result since we don't really care if the
     ;; event makes it to the sentry server or not (we certainly don't want to block until
     ;; it fails).
-    (http/async-request (get-http-client context)
-                  {:uri            (format "%s/api/store/" uri)
-                   :request-method :post
-                   :headers        {"X-Sentry-Auth" (auth-header ts key sig)
-                                    "User-Agent"    user-agent
-                                    "Content-Type"  "application/json"
-                                    "Content-Length" (count json-payload)}
-                   :transform      st/transform
-                   :body           json-payload}
-                  (constantly nil)))) ;; Noop
+    (http/post (format "%s/api/store/" uri)
+               {:headers {"X-Sentry-Auth"  (auth-header ts key sig)
+                          "Content-Type"   "application/json; charset=utf-8"
+                          "Content-Length" (count json-payload)}
+                :body    json-payload})))
 
 (defn capture!
   "Send a capture over the network. If `ev` is an exception,
