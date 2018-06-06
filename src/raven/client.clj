@@ -284,8 +284,7 @@
     ;; it fails).
     (http/post (format "%s/api/store/" uri)
                {:headers {"X-Sentry-Auth"  (auth-header ts key sig)
-                          "Content-Type"   "application/json; charset=utf-8"
-                          "Content-Length" (count json-payload)}
+                          "Content-Type"   "application/json"}
                 :body    json-payload})))
 
 (defn capture!
