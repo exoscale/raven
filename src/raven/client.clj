@@ -11,6 +11,10 @@
             [raven.spec            :as spec]
             [flatland.useful.utils :as useful]))
 
+(def user-agent
+  "Our advertized UA"
+  "exoscale-raven/0.4.0")
+
 ;; Make sure we enforce spec assertions.
 (s/check-asserts true)
 
@@ -74,10 +78,6 @@
              :exception  {:value  (.getMessage e)
                           :type   (str (class e))}}
       data (assoc :extra data))))
-
-(def user-agent
-  "Our advertized UA"
-  "exoscale-raven/0.3.0")
 
 (defn sentry-uuid!
   "A random UUID, without dashes"
