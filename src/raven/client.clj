@@ -85,26 +85,29 @@
   (str/replace (str (java.util.UUID/randomUUID)) "-" ""))
 
 (def hostname-refresh-interval
-  "How often to allow shelling out to hostname (1), in seconds. (stolen from riemann)"
+  "How often to allow reading /etc/hostname, in seconds."
   60)
 
-(defn safe-sh
-  [& args]
-  (try (apply sh/sh args)
-       (catch Exception _)))
+(defn get-hostname
+  "Get the current hostname by shelling out to 'hostname'"
+  []
+  (or
+   (try
+     (let [{:keys [exit out]} (sh/sh "hostname")]
+       (if (= exit 0)
+         (str/trim out)))
+     (catch Exception _))
+   "<unknown>"))
 
 (defn hostname
-  "Fetches the hostname by shelling out to hostname (1), whenever the given age
+  "Fetches the hostname by shelling to 'hostname', whenever the given age
   is stale enough. If the given age is recent, as defined by
-  hostname-refresh-interval, returns age and val instead. (stolen from riemann)"
+  hostname-refresh-interval, returns age and val instead."
   [[age val]]
   (if (and val (<= (* 1000 hostname-refresh-interval)
                    (- (System/currentTimeMillis) age)))
     [age val]
-    [(System/currentTimeMillis)
-     (let [{:keys [exit out]} (or (safe-sh "hostname") "<unknown>")]
-       (if (= exit 0)
-         (str/trim out)))]))
+    [(System/currentTimeMillis) (get-hostname)]))
 
 (let [cache (atom [nil nil])]
   (defn localhost
@@ -113,8 +116,7 @@
     (if (re-find #"^Windows" (System/getProperty "os.name"))
       (or (System/getenv "COMPUTERNAME") "localhost")
       (or (System/getenv "HOSTNAME")
-          (second (swap! cache hostname))
-          "localhost"))))
+          (second (swap! cache hostname))))))
 
 (def dsn-pattern
   "The shape of a sentry DSN"
@@ -171,21 +173,27 @@
   [context payload]
   (cond-> payload (:request context) (assoc :request (:request context))))
 
-(defn resolve-os-name-linux
-  "Get a human-readable name for the current linux distribution using
-    lsb_release"
+(defn slurp-pretty-name
+  [path]
+  (try
+    (last (re-find #"PRETTY_NAME=\"(.*)\"" (slurp path)))
+    (catch Exception _)))
+
+(defn get-linux-pretty-name
+  "Get the Linux distribution pretty name from /etc/os-release resp. /usr/lib/os-release."
   []
-  (or (System/getenv "OSVERSION")
-      (str/trim-newline (or (:out (safe-sh "lsb_release" "-sd"))
-                            "Unknown Linux"))))
+  (or
+   (slurp-pretty-name "/etc/os-release")
+   (slurp-pretty-name "/usr/lib/os-release")
+   "Unknown Linux"))
 
 (let [cache (atom nil)]  ;; cache version forever
   (defn get-os-name-linux
-    "Get a human-readable name for the current linux distribution using
-    lsb_release, caching the output"
+    "Get a human-readable name for the current linux distribution from /etc/os-release,
+     caching the output"
     []
     (or @cache
-        (swap! cache (constantly (resolve-os-name-linux))))))
+        (swap! cache (constantly (get-linux-pretty-name))))))
 
 (defn get-os-context
   []

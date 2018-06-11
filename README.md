@@ -224,6 +224,11 @@ using the `clear-http-stub` convenience function.
 
 ### Changelog
 
+#### Unreleased
+
+- Read hostname and linux distribution information from the filesystem instead
+  of shelling out.
+
 #### 0.3.3
 
 - Fix behavior on empty lsb_release string
