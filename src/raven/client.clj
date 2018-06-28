@@ -299,9 +299,9 @@
   "Send a capture over the network. If `ev` is an exception,
    build an appropriate payload for the exception."
   ([context dsn event tags]
-   (let [ts (timestamp!)
+   (let [ts      (timestamp!)
          payload (payload context event ts (localhost) tags)
-         uuid (:event_id payload)]
+         uuid    (:event_id payload)]
      (if (= dsn ":memory:")
        (perform-in-memory-request payload)
        (perform-http-request context dsn ts payload))
@@ -323,11 +323,11 @@
   ([message category level]
    (make-breadcrumb! message category level (timestamp!)))
   ([message category level timestamp]
-   {:type "default" ;; TODO: Extend to support more than just default breadcrumbs.
+   {:type      "default" ;; TODO: Extend to support more than just default breadcrumbs.
     :timestamp timestamp
-    :level level
-    :message message
-    :category category})
+    :level     level
+    :message   message
+    :category  category})
   ;; :data (expected in case of non-default)
 )
 
@@ -349,10 +349,10 @@
   ([id]
    {:id id})
   ([id email ip-address username]
-   {:id id
-    :email email
+   {:id         id
+    :email      email
     :ip_address ip-address
-    :username username}))
+    :username   username}))
 
 (defn add-user!
   "Add user information to the sentry context (or a thread-local storage)."
@@ -363,16 +363,16 @@
 
 (defn make-http-info
   ([url method]
-   {:url url
+   {:url    url
     :method method})
   ([url method headers query_string cookies data env]
-   {:url url
-    :method method
-    :headers headers
+   {:url          url
+    :method       method
+    :headers      headers
     :query_string query_string
-    :cookies cookies
-    :data data
-    :env env}))
+    :cookies      cookies
+    :data         data
+    :env          env}))
 
 (defn get-full-ring-url
   "Given a ring compliant request object, return the full URL.
@@ -387,25 +387,26 @@
 
 (defn get-ring-env
   [request]
-  (cond-> {:REMOTE_ADDR (:remote-addr request)
-           :websocket? (:websocket? request)
+  (cond-> {:REMOTE_ADDR  (:remote-addr request)
+           :websocket?   (:websocket? request)
            :route-params (:route-params request)
            :params (:params request)}
     (some? (:compojure/route request)) (assoc :compojure/route (:compojure/route request))
-    (some? (:route request)) (assoc :bidi/route (get-in request [:route :handler]))))
+    (some? (:route request))           (assoc :bidi/route (get-in request [:route :handler]))))
 
 (defn make-ring-request-info
   "Create well-formatted context map for the Sentry 'HTTP' interface by
     extracting the information from a standard ring-compliant 'request', as
     defined in https://github.com/ring-clojure/ring/wiki/Concepts#requests"
   [request]
-  {:url (get-full-ring-url request)
-   :method (:request-method request)
-   :cookies (get-in request [:headers "cookie"])
-   :headers (:headers request)
-   :query_string (:query-string request)
-   :data (:body request)
-   :env (get-ring-env request)})
+  (cond-> {:url          (get-full-ring-url request)
+           :method       (:request-method request)
+           :cookies      (get-in request [:headers "cookie"])
+           :headers      (:headers request)
+           :query_string (:query-string request)
+           :env          (get-ring-env request)}
+    (some? (:body request))
+    (assoc :data (:body request))))
 
 (defn add-http-info!
   "Add HTTP information to the sentry context (or a thread-local storage)."
@@ -416,7 +417,15 @@
 
 (defn add-ring-request!
   "Add HTTP information to the Sentry payload from a ring-compliant request
-    map."
+    map, excluding its body."
+  ([request]
+   (add-http-info! (make-ring-request-info (dissoc request :body))))
+  ([context request]
+   (add-http-info! context (make-ring-request-info (dissoc request :body)))))
+
+(defn add-full-ring-request!
+  "Add HTTP information to the Sentry payload from a ring-compliant request
+    map, including the request body"
   ([request]
    (add-http-info! (make-ring-request-info request)))
   ([context request]
