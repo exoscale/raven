@@ -8,7 +8,7 @@ A Clojure library to send events to a sentry host.
 ### Usage
 
 ```clojure
-[[exoscale/raven "0.4.0"]]
+[[exoscale/raven "0.4.1"]]
 ```
 
 The main exported function is `capture!` and has three arities:
@@ -106,7 +106,8 @@ More information can be found on [Sentry's documentation website](https://docs.s
 
 As for Users, Sentry supports adding information about the HTTP request that
 resulted in the captured exception. To fill in that information this library
-provides an `add-ring-request!` function with the following arities:
+provides `add-ring-request!` and `add-full-ring-request!` functions,
+with the following arities:
 
 - `(add-ring-request! ring-request)` Extract the required information from the
     supplied ring-compatible request map, and store the result in thread-local
@@ -114,6 +115,9 @@ provides an `add-ring-request!` function with the following arities:
 - `(add-ring-request! context ring-request)` Store the HTTP information
    extracted from the passed ring-compatible request in the user-specified
    map-like context (expected to be ultimately passed to `(capture!)`).
+
+The `add-full-ring-request!` function provides the same arities, and includes
+the request body in the capture, while `add-ring-request!` does not.
 
 Well formatted HTTP information maps can otherwise be created with the
 `make-http-info` helper function, with the following arities:
@@ -223,6 +227,11 @@ Users are responsible for cleaning the atom up between test runs, for example
 using the `clear-http-stub` convenience function.
 
 ### Changelog
+
+#### 0.4.1
+- Fixed tests
+- Do not include the body of the http request in (add-ring-request!). Instead,
+  provide a (add-full-ring-request!) helper as well.
 
 #### 0.4.0
 
