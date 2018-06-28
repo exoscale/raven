@@ -55,7 +55,7 @@
   "a test message")
 
 (def expected-header
-  (str "Sentry sentry_version=2.0, sentry_signature=" expected-sig ", sentry_timestamp=" frozen-ts ", sentry_client=exoscale-raven/0.3.0, sentry_key=" (:key expected-parsed-dsn)))
+  (str "Sentry sentry_version=2.0, sentry_signature=" expected-sig ", sentry_timestamp=" frozen-ts ", sentry_client=exoscale-raven/0.4.0, sentry_key=" (:key expected-parsed-dsn)))
 
 (def expected-user-id
   "Huginn")
@@ -247,7 +247,7 @@
 
 (deftest composed-ring-request
   (testing "the composition add-ring-request! adds a ring request to the payload"
-    (add-ring-request! frozen-request)
+    (add-full-ring-request! frozen-request)
     (capture! ":memory:" expected-message)
     (is (= (:url (:request (first @http-requests-payload-stub))) expected-test-url))))
 
@@ -255,7 +255,7 @@
   (testing "ee can produce nice events by threading top-level functions"
     (capture! ":memory:" (-> {}
                              (add-user! (make-user expected-user-id))
-                             (add-ring-request! frozen-request)
+                             (add-full-ring-request! frozen-request)
                              (add-exception! (Exception.))
                              (add-tag! :feather_color "black")))
     (is (= (:url (:request (first @http-requests-payload-stub))) expected-test-url))

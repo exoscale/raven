@@ -399,14 +399,13 @@
     extracting the information from a standard ring-compliant 'request', as
     defined in https://github.com/ring-clojure/ring/wiki/Concepts#requests"
   [request]
-  (cond-> {:url          (get-full-ring-url request)
-           :method       (:request-method request)
-           :cookies      (get-in request [:headers "cookie"])
-           :headers      (:headers request)
-           :query_string (:query-string request)
-           :env          (get-ring-env request)}
-    (some? (:body request))
-    (assoc :data (:body request))))
+  {:url          (get-full-ring-url request)
+   :method       (:request-method request)
+   :cookies      (get-in request [:headers "cookie"])
+   :headers      (:headers request)
+   :query_string (:query-string request)
+   :env          (get-ring-env request)
+   :data         (:body request)})
 
 (defn add-http-info!
   "Add HTTP information to the sentry context (or a thread-local storage)."
