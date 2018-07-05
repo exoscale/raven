@@ -8,7 +8,7 @@ A Clojure library to send events to a sentry host.
 ### Usage
 
 ```clojure
-[[exoscale/raven "0.4.1"]]
+[[exoscale/raven "0.4.2"]]
 ```
 
 The main exported function is `capture!` and has three arities:
@@ -228,7 +228,8 @@ using the `clear-http-stub` convenience function.
 
 ### Changelog
 
-#### Unreleased
+#### 0.4.2
+
 - Fixed bug when threading breadcrumbs.
 - Allowed users to inject an aleph connection pool via context.
 

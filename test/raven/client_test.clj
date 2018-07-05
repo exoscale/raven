@@ -55,7 +55,7 @@
   "a test message")
 
 (def expected-header
-  (str "Sentry sentry_version=2.0, sentry_signature=" expected-sig ", sentry_timestamp=" frozen-ts ", sentry_client=exoscale-raven/0.4.1, sentry_key=" (:key expected-parsed-dsn)))
+  (str "Sentry sentry_version=2.0, sentry_signature=" expected-sig ", sentry_timestamp=" frozen-ts ", sentry_client=" user-agent ", sentry_key=" (:key expected-parsed-dsn)))
 
 (def expected-user-id
   "Huginn")
