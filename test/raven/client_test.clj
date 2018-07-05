@@ -251,6 +251,11 @@
     (is (= (:url (:request (first @http-requests-payload-stub))) (str expected-test-url "?name=munnin")))
     (is (= (get-in (first @http-requests-payload-stub) [:request :query_string]) "name=munnin"))))
 
+(deftest no-http-client-in-context
+  (testing "unused keys in context don't end up in payload"
+    (let [context {:http_client "something"}]
+      (is (= nil (:http_client (make-test-payload context)))))))
+
 (deftest composed-ring-request
   (testing "the composition add-ring-request! adds a ring request to the payload"
     (add-full-ring-request! frozen-request)
@@ -258,15 +263,19 @@
     (is (= (:url (:request (first @http-requests-payload-stub))) expected-test-url))))
 
 (deftest top-level-copmosition
-  (testing "ee can produce nice events by threading top-level functions"
+  (testing "events can be produced by threading top-level functions"
     (capture! ":memory:" (-> {}
+                             (add-breadcrumb! expected-breadcrumb)
                              (add-user! (make-user expected-user-id))
                              (add-full-ring-request! frozen-request)
                              (add-exception! (Exception.))
-                             (add-tag! :feather_color "black")))
+                             (add-tag! :feather_color "black")
+                             (add-tag! :beak_color "black")))
     (is (= (:url (:request (first @http-requests-payload-stub))) expected-test-url))
-    (is (= {:feather_color "black"} (:tags (first @http-requests-payload-stub))))
-    (is (= expected-user-id (:id (:user (first @http-requests-payload-stub)))))))
+    (is (= "black" (:feather_color (:tags (first @http-requests-payload-stub)))))
+    (is (= "black" (:beak_color (:tags (first @http-requests-payload-stub)))))
+    (is (= expected-user-id (:id (:user (first @http-requests-payload-stub)))))
+    (is (= expected-breadcrumb (first (:values (:breadcrumbs (first @http-requests-payload-stub))))))))
 
 (deftest passing-sentry-id
   (testing "passing an outside sentry ID will forward it to the server"

@@ -162,7 +162,7 @@
 
 (defn add-breadcrumbs-to-payload
   [context payload]
-  (let [breadcrumbs-list (:breadcrumbs context)]
+  (let [breadcrumbs-list (or (:breadcrumbs payload) (:breadcrumbs context))]
     (cond-> payload (seq breadcrumbs-list) (assoc :breadcrumbs {:values breadcrumbs-list}))))
 
 (defn add-user-to-payload
