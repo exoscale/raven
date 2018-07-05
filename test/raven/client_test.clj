@@ -156,6 +156,12 @@
     (let [context {:breadcrumbs [(make-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts)]}]
       (is (= expected-breadcrumb (first (:values (:breadcrumbs (make-test-payload context)))))))))
 
+(deftest multi-breadcrumbs-in-manual-context
+  (testing "multiple breadcrumbs are sent using a manual context."
+    (let [context {:breadcrumbs [(make-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb) (:level expected-breadcrumb) frozen-ts) (make-breadcrumb! (:message expected-breadcrumb) (:category expected-breadcrumb))]}]
+      (is (= expected-breadcrumb (first (:values (:breadcrumbs (make-test-payload context))))))
+      (is (= 2 (count (:values (:breadcrumbs (make-test-payload context)))))))))
+
 (deftest add-user
   (testing "user is added to the payload"
     (add-user! (make-user expected-user-id))

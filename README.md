@@ -32,14 +32,14 @@ The `capture!` function returns the Sentry Event ID.
   that omitting this parameter will make use of some thread-local storage for
   some of the functionality.
 
-#### Passing your own http instance
+#### Passing your own aleph connection pool
 
-In many cases, it makes sense to reuse an already existing http client (created
-with http/build-client). Raven will reuse an http instance if it is passed to
-the (capture!) function through the `context` parameter, as :http.
+In many cases, it makes sense to reuse an already existing aleph conneciton pool (created
+with http/connection-pool). Raven will reuse a connection pool if it is passed to
+the (capture!) function through the `context` parameter, as `:pool`.
 
 ```clojure
-(capture! {:http (http/build-client {})} "<dsn>" "My message")
+(capture! {:pool (http/connection-pool {:connection-options {:raw-stream? true}})} "<dsn>" "My message")
 ```
 
 ### Extra interfaces

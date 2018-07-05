@@ -291,9 +291,11 @@
     ;; event makes it to the sentry server or not (we certainly don't want to block until
     ;; it fails).
     (http/post (format "%s/api/store/" uri)
-               {:headers {"X-Sentry-Auth"  (auth-header ts key sig)
-                          "Content-Type"   "application/json"}
-                :body    json-payload})))
+               (merge {:headers {"X-Sentry-Auth"  (auth-header ts key sig)
+                                 "Content-Type"   "application/json"}
+                       :body    json-payload}
+                      (cond (contains? context :pool) {:pool (:pool context)}
+                            :else {})))))
 
 (defn capture!
   "Send a capture over the network. If `ev` is an exception,
