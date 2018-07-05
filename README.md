@@ -228,6 +228,10 @@ using the `clear-http-stub` convenience function.
 
 ### Changelog
 
+#### Unreleased
+- Fixed bug when threading breadcrumbs.
+- Allowed users to inject an aleph connection pool via context.
+
 #### 0.4.1
 - Fixed tests
 - Do not include the body of the http request in (add-ring-request!). Instead,
