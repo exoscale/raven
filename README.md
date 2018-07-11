@@ -8,7 +8,7 @@ A Clojure library to send events to a sentry host.
 ### Usage
 
 ```clojure
-[[exoscale/raven "0.4.2"]]
+[[exoscale/raven "0.4.3"]]
 ```
 
 The main exported function is `capture!` and has three arities:
@@ -40,6 +40,20 @@ the (capture!) function through the `context` parameter, as `:pool`.
 
 ```clojure
 (capture! {:pool (http/connection-pool {:connection-options {:raw-stream? true}})} "<dsn>" "My message")
+```
+
+#### More aleph options
+
+You can also pass the following aleph configuration through the context:
+
+```clojure
+(capture! {:pool nil
+           :middleware nil
+           :pool-timeout nil
+           :response-executor nil
+           :request-timeout nil
+           :read-timeout nil
+           :connection-timeout nil})
 ```
 
 ### Extra interfaces
@@ -227,6 +241,10 @@ Users are responsible for cleaning the atom up between test runs, for example
 using the `clear-http-stub` convenience function.
 
 ### Changelog
+
+#### 0.4.3
+
+- Added support for more aleph options.
 
 #### 0.4.2
 

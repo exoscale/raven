@@ -13,7 +13,7 @@
 
 (def user-agent
   "Our advertized UA"
-  "exoscale-raven/0.4.2")
+  "exoscale-raven/0.4.3")
 
 ;; Make sure we enforce spec assertions.
 (s/check-asserts true)
