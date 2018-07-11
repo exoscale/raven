@@ -1,15 +1,15 @@
-![An exoscale Raven](raven.png "An Exoscale Raven")
-
 raven: clojure sentry client library
 ====================================
 
+[![Travis status](https://api.travis-ci.org/exoscale/raven.svg)](https://travis-ci.org/exoscale/raven)
+
 A Clojure library to send events to a sentry host.
+
+![An exoscale Raven](raven.png "An Exoscale Raven")
 
 ### Usage
 
-```clojure
-[[exoscale/raven "0.4.4"]]
-```
+[![Clojars Project](https://img.shields.io/clojars/v/exoscale/raven.svg)](https://clojars.org/exoscale/raven)
 
 The main exported function is `capture!` and has three arities:
 
