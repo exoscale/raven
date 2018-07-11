@@ -13,7 +13,7 @@
 
 (def user-agent
   "Our advertized UA"
-  "exoscale-raven/0.4.3")
+  "exoscale-raven/0.4.4")
 
 ;; Make sure we enforce spec assertions.
 (s/check-asserts true)
@@ -272,8 +272,10 @@
   [payload ts key ^String secret]
   (let [key (javax.crypto.spec.SecretKeySpec. (.getBytes secret) "HmacSHA1")
         bs  (-> (doto (javax.crypto.Mac/getInstance "HmacSHA1")
-                  (.init key))
-                (.doFinal (.getBytes (format "%s %s" ts payload))))]
+                  (.init key)
+                  (.update (.getBytes (str ts)))
+                  (.update (.getBytes " ")))
+                (.doFinal payload))]
     (reduce str (for [b bs] (format "%02x" b)))))
 
 (defn perform-in-memory-request
@@ -284,21 +286,21 @@
 
 (defn perform-http-request
   [context dsn ts payload]
-  (let [json-payload                 (json/write-value-as-bytes payload)
-        {:keys [key secret uri pid]} (parse-dsn dsn)
-        sig                          (sign json-payload ts key secret)]
+  (let [json-payload             (json/write-value-as-bytes payload)
+        {:keys [key secret uri]} (parse-dsn dsn)
+        sig                      (sign json-payload ts key secret)]
     ;; This is async, but we don't wait for the result since we don't really care if the
     ;; event makes it to the sentry server or not (we certainly don't want to block until
     ;; it fails).
-    (http/post (str uri "/api/store")
+    (http/post (str uri "/api/store/")
                (merge (select-keys context [:pool :middleware :pool-timeout
                                             :response-executor :request-timeout
                                             :read-timeout :connection-timeout])
-                      {:headers        {:x-sentry-auth  (auth-header ts key sig)
-                                        :accept         "application/json"
-                                        :content-type   "application/json;charset=utf-8"
-                                        :content-length (count json-payload)}
-                       :body           json-payload}))))
+                      {:headers {:x-sentry-auth  (auth-header ts key sig)
+                                 :accept         "application/json"
+                                 :content-type   "application/json;charset=utf-8"
+                                 :content-length (count json-payload)}
+                       :body    json-payload}))))
 
 (defn capture!
   "Send a capture over the network. If `ev` is an exception,
