@@ -284,18 +284,21 @@
 
 (defn perform-http-request
   [context dsn ts payload]
-  (let [json-payload                 (json/write-value-as-string payload)
+  (let [json-payload                 (json/write-value-as-bytes payload)
         {:keys [key secret uri pid]} (parse-dsn dsn)
         sig                          (sign json-payload ts key secret)]
     ;; This is async, but we don't wait for the result since we don't really care if the
     ;; event makes it to the sentry server or not (we certainly don't want to block until
     ;; it fails).
-    (http/post (format "%s/api/store/" uri)
-               (merge {:headers {"X-Sentry-Auth"  (auth-header ts key sig)
-                                 "Content-Type"   "application/json"}
-                       :body    json-payload}
-                      (cond (contains? context :pool) {:pool (:pool context)}
-                            :else {})))))
+    (http/post (str uri "/api/store")
+               (merge (select-keys context [:pool :middleware :pool-timeout
+                                            :response-executor :request-timeout
+                                            :read-timeout :connection-timeout])
+                      {:headers        {:x-sentry-auth  (auth-header ts key sig)
+                                        :accept         "application/json"
+                                        :content-type   "application/json;charset=utf-8"
+                                        :content-length (count json-payload)}
+                       :body           json-payload}))))
 
 (defn capture!
   "Send a capture over the network. If `ev` is an exception,
