@@ -27,7 +27,7 @@
   "A frozen Ring request object"
   {:remote-addr "127.0.0.1"
    :params {}
-   :route-params {},
+   :route-params {}
    :headers {"accept" "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
              "accept-encoding" "gzip, deflate"
              "accept-language" "en-GB,en;q=0.5"
@@ -112,7 +112,7 @@
     (is (= (parse-dsn dsn-fixture) expected-parsed-dsn)))
 
   (testing "signing"
-    (is (= (sign "payload" frozen-ts (:key expected-parsed-dsn) (:secret expected-parsed-dsn)) expected-sig)))
+    (is (= (sign (.getBytes "payload") frozen-ts (:key expected-parsed-dsn) (:secret expected-parsed-dsn)) expected-sig)))
 
   (testing "the auth header is what we expect"
     (is (= (auth-header frozen-ts (:key expected-parsed-dsn) expected-sig) expected-header)))
