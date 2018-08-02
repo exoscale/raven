@@ -451,6 +451,13 @@
   ([context tag value]
    (assoc-in context [:tags tag] value)))
 
+(defn add-tags!
+  "Add custom tags to the context (or a thread-local storage)."
+  ([tags]
+   (swap! @thread-storage add-tags! tags))
+  ([context tags]
+   (reduce-kv add-tag! context tags)))
+
 (defn add-exception!
   "Add an exception to the context (or a thread-local storage)."
   ([^Throwable e]
