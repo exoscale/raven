@@ -222,7 +222,11 @@
   (testing "tags added by context are passed during capture"
     (add-tag! :feather_color "black")
     (capture! ":memory:" (Exception.))
-    (is (= {:feather_color "black"} (:tags (first @http-requests-payload-stub))))))
+    (is (= {:feather_color "black"} (:tags (first @http-requests-payload-stub)))))
+  (testing "tags added by context are passed during capture"
+    (add-tags! {:env "prod" :feather_color "black"})
+    (capture! ":memory:" (Exception.))
+    (is (= {:feather_color "black" :env "prod"} (:tags (second @http-requests-payload-stub))))))
 
 (deftest capture-tags-override-context
   (testing "tags added by context are overriden by inline tags"
