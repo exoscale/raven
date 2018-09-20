@@ -248,6 +248,12 @@
     (is (= (:url (:request (first @http-requests-payload-stub))) expected-test-url))
     (is (= (get-in (first @http-requests-payload-stub) [:request :env :compojure/route]) nil))))
 
+(deftest ring-request-with-params
+  (testing "passing a ring request to Sentry when using ring.middleware.params"
+    (add-ring-request! (assoc frozen-request :params {:some-param "value"}))
+    (capture! ":memory:" expected-message)
+    (is (= (:some-param (:env (:request (first @http-requests-payload-stub)))) "value"))))
+
 (deftest ring-request-query-string
   (testing "passing a ring request to Sentry with a query string"
     (add-http-info! (make-ring-request-info (assoc frozen-request :query-string "name=munnin")))
