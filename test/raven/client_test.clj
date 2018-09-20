@@ -255,6 +255,12 @@
     (is (= (:url (:request (first @http-requests-payload-stub))) (str expected-test-url "?name=munnin")))
     (is (= (get-in (first @http-requests-payload-stub) [:request :query_string]) "name=munnin"))))
 
+(deftest ring-request-no-params
+  (testing "passing a ring request does not forward :params to sentry"
+    (add-ring-request! (assoc frozen-request :params {:something "blah"}))
+    (capture! ":memory:" expected-message)
+    (is (nil? (:params (:env (:request (first @http-requests-payload-stub))))))))
+
 (deftest no-http-client-in-context
   (testing "unused keys in context don't end up in payload"
     (let [context {:http_client "something"}]
