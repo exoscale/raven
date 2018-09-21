@@ -396,8 +396,7 @@
   [request]
   (cond-> {:REMOTE_ADDR  (:remote-addr request)
            :websocket?   (:websocket? request)
-           :route-params (:route-params request)
-           :params (:params request)}
+           :route-params (:route-params request)}
     (some? (:compojure/route request)) (assoc :compojure/route (:compojure/route request))
     (some? (:route request))           (assoc :bidi/route (get-in request [:route :handler]))))
 
