@@ -304,8 +304,7 @@
                                              :content-type   "application/json;charset=utf-8"}
                          :body              json-payload
                          :throw-exceptions? false}))
-      (d/chain
-        #(.close ^Closeable (:body %))))))
+      #(.close ^Closeable (:body %)))))
 
 (defn capture!
   "Send a capture over the network. If `ev` is an exception,
