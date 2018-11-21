@@ -242,6 +242,10 @@ using the `clear-http-stub` convenience function.
 
 ### Changelog
 
+#### 0.4.6
+
+- Close the body netty stream
+
 #### 0.4.5
 
 - add-tags! function to add multiple tags to the context

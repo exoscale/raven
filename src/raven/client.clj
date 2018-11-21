@@ -4,12 +4,14 @@
            java.lang.Exception
            java.lang.StackTraceElement)
   (:require [aleph.http            :as http]
+            [manifold.deferred     :as d]
             [jsonista.core         :as json]
             [clojure.string        :as str]
             [clojure.spec.alpha    :as s]
             [clojure.java.shell    :as sh]
             [raven.spec            :as spec]
-            [flatland.useful.utils :as useful]))
+            [flatland.useful.utils :as useful])
+  (:import java.io.Closeable))
 
 (def user-agent
   "Our advertized UA"
@@ -292,15 +294,18 @@
     ;; This is async, but we don't wait for the result since we don't really care if the
     ;; event makes it to the sentry server or not (we certainly don't want to block until
     ;; it fails).
-    (http/post (str uri "/api/store/")
-               (merge (select-keys context [:pool :middleware :pool-timeout
-                                            :response-executor :request-timeout
-                                            :read-timeout :connection-timeout])
-                      {:headers {:x-sentry-auth  (auth-header ts key sig)
-                                 :accept         "application/json"
-                                 :content-type   "application/json;charset=utf-8"
-                                 :content-length (count json-payload)}
-                       :body    json-payload}))))
+    (d/chain
+      (http/post (str uri "/api/store/")
+                 (merge (select-keys context [:pool :middleware :pool-timeout
+                                              :response-executor :request-timeout
+                                              :read-timeout :connection-timeout])
+                        {:headers           {:x-sentry-auth  (auth-header ts key sig)
+                                             :accept         "application/json"
+                                             :content-type   "application/json;charset=utf-8"}
+                         :body              json-payload
+                         :throw-exceptions? false}))
+      (d/chain
+        #(.close ^Closeable (:body %))))))
 
 (defn capture!
   "Send a capture over the network. If `ev` is an exception,
