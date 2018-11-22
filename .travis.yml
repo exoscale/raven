@@ -6,3 +6,4 @@ language: clojure
 jdk:
   - openjdk8
   - oraclejdk8
+  - openjdk11
