@@ -47,13 +47,6 @@
     (str/join \newline (map via->sign via))))
 
 
-(defn ex-type->name
-  [^Symbol ex-type]
-  (-> (str ex-type)
-      (str/split #"\.")
-      last))
-
-
 (defn via->exception
   "
   Turn one of the `via` nodes into a sentry exception map.
@@ -63,7 +56,7 @@
   "
   [^Map via]
   (let [{:keys [type message]} via]
-    {:type (ex-type->name type)
+    {:type type
      :value message}))
 
 
@@ -79,11 +72,11 @@
         {:keys [type message]} ex-top]
 
     {:message message
-     :culprit (ex-type->name type)
+     :culprit message
      :checksum (-> ex-map ex-map->sign hash str)
      :stacktrace {:frames (map trace->frame trace)}
      :extra (select-keys ex-map [:via])
-     :exception (via->exception ex-top)}))
+     :exception {:values (mapv via->exception via)}}))
 
 
 (defn exception?
