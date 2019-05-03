@@ -56,7 +56,7 @@
   "
   [^Map via]
   (let [{:keys [type message]} via]
-    {:type type
+    {:type (str type)
      :value message}))
 
 
@@ -72,7 +72,7 @@
         {:keys [type message]} ex-top]
 
     {:message message
-     :culprit message
+     :culprit (str type)
      :checksum (-> ex-map ex-map->sign hash str)
      :stacktrace {:frames (map trace->frame trace)}
      :extra (select-keys ex-map [:via])
