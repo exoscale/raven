@@ -1,8 +1,7 @@
 (ns raven.client
   "A netty-based Sentry client."
   (:import java.lang.Throwable
-           java.lang.Exception
-           java.lang.StackTraceElement)
+           java.lang.Exception)
   (:require [aleph.http            :as http]
             [manifold.deferred     :as d]
             [jsonista.core         :as json]
@@ -10,6 +9,7 @@
             [clojure.spec.alpha    :as s]
             [clojure.java.shell    :as sh]
             [raven.spec            :as spec]
+            [raven.exception       :as e]
             [flatland.useful.utils :as useful])
   (:import java.io.Closeable))
 
@@ -43,43 +43,6 @@
   "Reset this thread's context"
   []
   (swap! @thread-storage (fn [x] {})))
-
-(defn md5
-  [^String x]
-  (reduce
-   str
-   (for [b (-> (java.security.MessageDigest/getInstance "MD5")
-               (.digest (.getBytes x)))]
-     (format "%02x" b))))
-
-(defn exception?
-  "Is the value an exception?"
-  [e]
-  (instance? Exception e))
-
-(defn frame->info
-  "Format a stack-trace frame."
-  [^StackTraceElement frame]
-  {:filename (.getFileName frame)
-   :lineno   (.getLineNumber frame)
-   :function (str (.getClassName frame) "." (.getMethodName frame))})
-
-(defn exception-frames
-  [^Exception e]
-  (for [f (reverse (.getStackTrace e))]
-    (frame->info f)))
-
-(defn exception->ev
-  "Format an exception in an appropriate manner."
-  [^Throwable e]
-  (let [data (ex-data e)]
-    (cond-> {:message                      (.getMessage e)
-             :culprit                      (str (class e))
-             :checksum                     (md5 (str (class e)))
-             :stacktrace {:frames (exception-frames e)}
-             :exception  {:value  (.getMessage e)
-                          :type   (str (class e))}}
-      data (assoc :extra data))))
 
 (defn sentry-uuid!
   "A random UUID, without dashes"
@@ -158,9 +121,9 @@
   [event ts localhost]
   (merge (default-payload ts localhost)
          (cond
-           (map? event)       event
-           (exception? event) (exception->ev event)
-           :else              {:message (str event)})))
+           (map? event)         event
+           (e/exception? event) (e/exception->ev event)
+           :else                {:message (str event)})))
 
 (defn add-breadcrumbs-to-payload
   [context payload]
@@ -466,4 +429,4 @@
   ([^Throwable e]
    (swap! @thread-storage add-exception! e))
   ([context ^Throwable e]
-   (merge context (exception->ev e))))
+   (merge context (e/exception->ev e))))
