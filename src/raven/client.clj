@@ -424,9 +424,20 @@
   ([context tags]
    (reduce-kv add-tag! context tags)))
 
+(defn add-extra!
+  "Add a map of extra data to the context (or a thread-local storage)
+  preserving its previous keys."
+  ([extra]
+   (swap! @thread-storage add-extra! extra))
+  ([context extra]
+   (update context :extra merge extra)))
+
 (defn add-exception!
   "Add an exception to the context (or a thread-local storage)."
   ([^Throwable e]
    (swap! @thread-storage add-exception! e))
   ([context ^Throwable e]
-   (merge context (e/exception->ev e))))
+   (let [env (e/exception->ev e)]
+     (-> context
+         (merge (dissoc env :extra))
+         (add-extra! (:extra env))))))
