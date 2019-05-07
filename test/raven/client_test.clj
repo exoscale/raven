@@ -1,5 +1,6 @@
 (ns raven.client-test
-  (:require [clojure.test :refer :all]
+  (:require [clojure.string :as str]
+            [clojure.test :refer :all]
             [raven.client :refer :all]))
 
 (def dsn-fixture
@@ -292,3 +293,78 @@
     (capture! ":memory:" (-> {:event_id "abcd"}
                              (add-exception! (Exception.))))
     (is (= "abcd" (:event_id (first @http-requests-payload-stub))))))
+
+
+(deftest exception-sign
+  (testing "Fixate the way we build a string to hash"
+
+    (let [e (ex-info "error1" {:field1 1
+                               :type ::special-error}
+                     (new Exception "error2"
+                          (ex-info "error3" {:field3 3})))
+
+          sign (-> e Throwable->map raven.exception/ex-map->sign)
+
+          lines [":raven.client-test/special-error"
+                 "java.lang.Exception:error2"
+                 "clojure.lang.ExceptionInfo:error3"]]
+
+      (is (= sign (str/join \newline lines))))))
+
+(deftest exception-structure
+
+  (testing "Fixate the exceptions's structure"
+
+    (let [e (ex-info "ex1" {:field1 1}
+                     (ex-info "ex2" {:field2 2}))
+
+          context (add-exception! nil e)]
+
+      (capture! ":memory:" context))
+
+    (let [fields [:message :culprit :checksum :extra :exception]
+          submap (-> @http-requests-payload-stub
+                     first
+                     (select-keys fields)
+                     (update-in [:extra :via]
+                                (fn [via]
+                                  (mapv #(dissoc % :at) via))))]
+
+      (is (= submap
+             '{:message "ex1"
+               :culprit "clojure.lang.ExceptionInfo"
+               :checksum "1364801774"
+               :extra
+               {:via
+                [{:type clojure.lang.ExceptionInfo
+                  :message "ex1"
+                  :data {:field1 1}}
+                 {:type clojure.lang.ExceptionInfo
+                  :message "ex2"
+                  :data {:field2 2}}]}
+               :exception
+               {:values
+                [{:type "clojure.lang.ExceptionInfo" :value "ex1"}
+                 {:type "clojure.lang.ExceptionInfo" :value "ex2"}]}})))))
+
+(deftest exception-preserves-extra
+  (testing "Adding an exception to the context saves old extra"
+
+    (let [e (ex-info "ex1" {:field1 1}
+                     (ex-info "ex2" {:field2 2}))
+
+          context (-> nil
+                      (add-extra! {:aaa 1})
+                      (add-exception! e)
+                      (add-extra! {:bbb 2}))]
+
+      (capture! ":memory:" context))
+
+    (let [extra (-> @http-requests-payload-stub
+                    first
+                    :extra)]
+
+      (is (= (dissoc extra :via)
+             {:aaa 1 :bbb 2}))
+
+      (is (-> extra :via vector?)))))
