@@ -1,7 +1,8 @@
 (ns raven.client-test
   (:require [clojure.string :as str]
             [clojure.test :refer :all]
-            [raven.client :refer :all]))
+            [raven.client :refer :all]
+            [jsonista.core :as json]))
 
 (def dsn-fixture
   "https://098f6bcd4621d373cade4e832627b4f6:ad0234829205b9033196ba818f7a872b@sentry.example.com/42")
@@ -368,3 +369,11 @@
              {:aaa 1 :bbb 2}))
 
       (is (-> extra :via vector?)))))
+
+
+(deftest test-json-serializer
+  (is (thrown? Exception (json/write-value-as-bytes (Object.)))
+      "throws without our mapper")
+  (is (json/write-value-as-bytes (Object.)
+                                 json-mapper)
+      "pass trough with our mapper"))
