@@ -11,7 +11,8 @@
             [raven.spec            :as spec]
             [raven.exception       :as e]
             [flatland.useful.utils :as useful])
-  (:import java.io.Closeable))
+  (:import java.io.Closeable
+           com.fasterxml.jackson.databind.SerializationFeature))
 
 (def user-agent
   "Our advertized UA"
@@ -249,9 +250,13 @@
   [payload]
   (swap! http-requests-payload-stub conj payload))
 
+(def json-mapper
+  (doto (json/object-mapper {})
+    (.configure SerializationFeature/FAIL_ON_EMPTY_BEANS false)))
+
 (defn perform-http-request
   [context dsn ts payload]
-  (let [json-payload             (json/write-value-as-bytes payload)
+  (let [json-payload             (json/write-value-as-bytes payload json-mapper)
         {:keys [key secret uri]} (parse-dsn dsn)
         sig                      (sign json-payload ts key secret)]
     ;; This is async, but we don't wait for the result since we don't really care if the
