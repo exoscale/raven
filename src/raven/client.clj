@@ -12,7 +12,8 @@
             [raven.exception       :as e]
             [flatland.useful.utils :as useful])
   (:import java.io.Closeable
-           com.fasterxml.jackson.databind.SerializationFeature))
+           (com.fasterxml.jackson.databind MapperFeature
+                                           SerializationFeature)))
 
 (def user-agent
   "Our advertized UA"
@@ -252,7 +253,13 @@
 
 (def json-mapper
   (doto (json/object-mapper {})
-    (.configure SerializationFeature/FAIL_ON_EMPTY_BEANS false)))
+    (.configure SerializationFeature/FAIL_ON_EMPTY_BEANS false)
+    (.configure MapperFeature/AUTO_DETECT_GETTERS false)
+    (.configure MapperFeature/AUTO_DETECT_IS_GETTERS false)
+    (.configure MapperFeature/AUTO_DETECT_SETTERS false)
+    (.configure MapperFeature/AUTO_DETECT_FIELDS false)
+    (.configure MapperFeature/AUTO_DETECT_FIELDS false)
+    (.configure MapperFeature/DEFAULT_VIEW_INCLUSION false)))
 
 (defn perform-http-request
   [context dsn ts payload]
