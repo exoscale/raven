@@ -258,7 +258,6 @@
     (.configure MapperFeature/AUTO_DETECT_IS_GETTERS false)
     (.configure MapperFeature/AUTO_DETECT_SETTERS false)
     (.configure MapperFeature/AUTO_DETECT_FIELDS false)
-    (.configure MapperFeature/AUTO_DETECT_FIELDS false)
     (.configure MapperFeature/DEFAULT_VIEW_INCLUSION false)))
 
 (defn perform-http-request
