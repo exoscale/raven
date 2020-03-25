@@ -371,9 +371,15 @@
       (is (-> extra :via vector?)))))
 
 
+(defrecord Foo [b])
 (deftest test-json-serializer
   (is (thrown? Exception (json/write-value-as-bytes (Object.)))
       "throws without our mapper")
   (is (json/write-value-as-bytes (Object.)
                                  json-mapper)
-      "pass trough with our mapper"))
+      "pass trough with our mapper")
+
+  (is (= "{\"a\":{\"b\":{}}}"
+         (String. (json/write-value-as-bytes {:a (Foo. (java.lang.Exception. "yolo"))}
+                                             json-mapper)))
+      "don't do (bean x) on unknown values"))
