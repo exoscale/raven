@@ -452,3 +452,12 @@
      (-> context
          (merge (dissoc env :extra))
          (add-extra! (:extra env))))))
+
+(defn release!
+  "Release new application version with provided webhook release URL."
+  [webhook-endpoint payload]
+  (if (some? (:version payload))
+    (http/post webhook-endpoint
+               {:headers {:content-type "application/json"}
+                :body    (json/write-value-as-bytes payload)})
+    (throw (ex-info "no version key provided" {:payload payload}))))
