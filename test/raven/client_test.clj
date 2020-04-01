@@ -2,7 +2,10 @@
   (:require [clojure.string :as str]
             [clojure.test :refer :all]
             [raven.client :refer :all]
-            [jsonista.core :as json]))
+            [jsonista.core :as json]
+            [manifold.deferred :as d])
+  (:import [manifold.deferred
+            SuccessDeferred Deferred]))
 
 (def dsn-fixture
   "https://098f6bcd4621d373cade4e832627b4f6:ad0234829205b9033196ba818f7a872b@sentry.example.com/42")
@@ -201,7 +204,7 @@
 
 (deftest capture-returns-uuid
   (testing "capturing an event returns the event's uuid"
-    (let [out (capture! ":memory:" {:message "whatever"})]
+    (let [out @(capture! ":memory:" {:message "whatever"})]
       (is (= 32 (count out)))
       (is (string? out)))))
 
@@ -311,6 +314,22 @@
                  "clojure.lang.ExceptionInfo:error3"]]
 
       (is (= sign (str/join \newline lines))))))
+
+
+(deftest test-capture-result
+  (let [result (capture! ":memory:" {:event_id "abcd"})]
+    (is (instance? SuccessDeferred result))))
+
+
+(deftest test-capture-http-exception
+  (with-redefs [aleph.http/post
+                (fn [& _]
+                  (d/future
+                    (throw (new Exception "boom"))))]
+    (let [result (capture! "https://xxx:yyy@example.com/999" {:event_id "abcd"})]
+      (is (instance? Deferred result))
+      (is (thrown-with-msg? Exception #"boom" @result)))))
+
 
 (deftest exception-structure
 
