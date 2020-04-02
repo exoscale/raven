@@ -44,7 +44,7 @@
 (defn clear-context
   "Reset this thread's context"
   []
-  (swap! @thread-storage (fn [x] {})))
+  (reset! @thread-storage {}))
 
 (defn sentry-uuid!
   "A random UUID, without dashes"
@@ -287,12 +287,13 @@
    (let [ts      (timestamp!)
          payload (payload context event ts (localhost) tags)
          uuid    (:event_id payload)]
-     (if (= dsn ":memory:")
-       (perform-in-memory-request payload)
-       (perform-http-request context dsn ts payload))
-     ;; Make sure we clear the local-storage.
-     (clear-context)
-     uuid))
+     (d/chain
+      (if (= dsn ":memory:")
+        (perform-in-memory-request payload)
+        (perform-http-request context dsn ts payload))
+      (fn [_]
+        (clear-context)
+        uuid))))
   ([dsn ev tags]
    (capture! @@thread-storage dsn ev tags))
   ([dsn ev]
