@@ -1,4 +1,4 @@
-(defproject exoscale/raven "0.4.11"
+(defproject exoscale/raven "0.4.12-SNAPSHOT"
   :description "clojure sentry client library"
   :url "https://github.com/exoscale/raven"
   :license {:name "MIT License"}
