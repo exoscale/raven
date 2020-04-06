@@ -260,25 +260,46 @@
     (.configure MapperFeature/AUTO_DETECT_FIELDS false)
     (.configure MapperFeature/DEFAULT_VIEW_INCLUSION false)))
 
+(def closable? (partial instance? Closeable))
+
+(defn close-http-connection
+  "
+  When having a connection pool set, the body
+  cannot be closed as it's of a different type.
+  "
+  [response]
+  (let [{:keys [body]} response]
+    (when (closable? body)
+      (.close ^Closeable body))))
+
+(defn re-throw-response
+  "
+  Throw the response in case of its status was not 2xx
+  as we don't want Sentry errors to be unnoticed.
+  "
+  [response]
+  (let [{:keys [status]} response]
+    (when-not (-> status str first (= \2))
+      (throw (ex-info (format "Sentry HTTP error") response)))))
+
 (defn perform-http-request
   [context dsn ts payload]
   (let [json-payload             (json/write-value-as-bytes payload json-mapper)
         {:keys [key secret uri]} (parse-dsn dsn)
         sig                      (sign json-payload ts key secret)]
-    ;; This is async, but we don't wait for the result since we don't really care if the
-    ;; event makes it to the sentry server or not (we certainly don't want to block until
-    ;; it fails).
     (d/chain
-      (http/post (str uri "/api/store/")
-                 (merge (select-keys context [:pool :middleware :pool-timeout
-                                              :response-executor :request-timeout
-                                              :read-timeout :connection-timeout])
-                        {:headers           {:x-sentry-auth  (auth-header ts key sig)
-                                             :accept         "application/json"
-                                             :content-type   "application/json;charset=utf-8"}
-                         :body              json-payload
-                         :throw-exceptions? false}))
-      #(.close ^Closeable (:body %)))))
+     (http/post (str uri "/api/store/")
+                (merge (select-keys context [:pool :middleware :pool-timeout
+                                             :response-executor :request-timeout
+                                             :read-timeout :connection-timeout])
+                       {:headers           {:x-sentry-auth  (auth-header ts key sig)
+                                            :accept         "application/json"
+                                            :content-type   "application/json;charset=utf-8"}
+                        :body              json-payload
+                        :throw-exceptions? false}))
+     (fn [response]
+       (close-http-connection response)
+       (re-throw-response response)))))
 
 (defn capture!
   "Send a capture over the network. If `ev` is an exception,
