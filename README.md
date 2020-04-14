@@ -248,7 +248,7 @@ using the `clear-http-stub` convenience function.
 
 ### Changelog
 
-#### 0.4.11
+#### 0.4.13
 
 - Add `release!` functionality
 
