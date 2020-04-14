@@ -23,6 +23,12 @@ The `capture!` function returns the Sentry Event ID.
 (println "Sentry event created" (capture! <dsn> (Exception.)))
 ```
 
+A `release!` function allows for making a [Release](https://docs.sentry.io/workflow/releases/) via a provided webhook endpoint:
+
+```clojure
+(release! "https://provided.sentry/endpoint" {:version "abcdef"})
+```
+
 #### Arguments
 
 - **DSN**: A Sentry DSN as defined http://sentry.readthedocs.org/en/2.9.0/client/index.html#parsing-the-dsn
@@ -241,6 +247,10 @@ Users are responsible for cleaning the atom up between test runs, for example
 using the `clear-http-stub` convenience function.
 
 ### Changelog
+
+#### 0.4.11
+
+- Add `release!` functionality
 
 #### 0.4.6
 
