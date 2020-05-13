@@ -1,6 +1,5 @@
 (ns raven.client
   "A netty-based Sentry client."
-  (:require-clojure :exclude [empty])
   (:import java.lang.Throwable
            java.lang.Exception)
   (:require [aleph.http            :as http]
