@@ -382,4 +382,7 @@
   (is (= "{\"a\":{\"b\":{}}}"
          (String. (json/write-value-as-bytes {:a (Foo. (java.lang.Exception. "yolo"))}
                                              json-mapper)))
-      "don't do (bean x) on unknown values"))
+      "don't do (bean x) on unknown values")
+  (is (= "\"#<SafeMap[:a, :b]>\""
+         (json/write-value-as-string (safe-map {:a 1 :b 2})
+                                     json-mapper))))

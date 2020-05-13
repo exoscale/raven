@@ -1,5 +1,6 @@
 (ns raven.client
   "A netty-based Sentry client."
+  (:require-clojure :exclude [empty])
   (:import java.lang.Throwable
            java.lang.Exception)
   (:require [aleph.http            :as http]
@@ -12,6 +13,7 @@
             [raven.exception       :as e]
             [flatland.useful.utils :as useful])
   (:import java.io.Closeable
+           (com.fasterxml.jackson.core JsonGenerator)
            (com.fasterxml.jackson.databind MapperFeature
                                            SerializationFeature)))
 
@@ -251,8 +253,21 @@
   [payload]
   (swap! http-requests-payload-stub conj payload))
 
+(defrecord SafeMap [])
+(defmethod clojure.core/print-method SafeMap
+  [m ^java.io.Writer writer]
+  (.write writer (format "#<SafeMap[%s]>" (str/join ", " (keys m)))))
+
+(def safe-map
+  "Wraps map into SafeMap record, effectively hidding values from json
+  output, will not allow 2-way roundtrip. ex: (safe-map {:a 1}) ->
+  \"#<SafeMap[:a]>\". Can be used to hide secrets and/or shorten
+  large/deep maps"
+  map->SafeMap)
+
 (def json-mapper
-  (doto (json/object-mapper {})
+  (doto (json/object-mapper {:encoders {SafeMap (fn [x ^JsonGenerator jg] (.writeString jg (pr-str x)))
+                                        EmptyMap (fn [_ ^JsonGenerator jg] (.writeString jg "{}"))}})
     (.configure SerializationFeature/FAIL_ON_EMPTY_BEANS false)
     (.configure MapperFeature/AUTO_DETECT_GETTERS false)
     (.configure MapperFeature/AUTO_DETECT_IS_GETTERS false)
