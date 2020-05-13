@@ -265,8 +265,7 @@
   map->SafeMap)
 
 (def json-mapper
-  (doto (json/object-mapper {:encoders {SafeMap (fn [x ^JsonGenerator jg] (.writeString jg (pr-str x)))
-                                        EmptyMap (fn [_ ^JsonGenerator jg] (.writeString jg "{}"))}})
+  (doto (json/object-mapper {:encoders {SafeMap (fn [x ^JsonGenerator jg] (.writeString jg (pr-str x)))}})
     (.configure SerializationFeature/FAIL_ON_EMPTY_BEANS false)
     (.configure MapperFeature/AUTO_DETECT_GETTERS false)
     (.configure MapperFeature/AUTO_DETECT_IS_GETTERS false)
