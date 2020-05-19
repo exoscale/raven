@@ -3,7 +3,8 @@
             [clojure.test :refer :all]
             [raven.client :refer :all]
             [jsonista.core :as json]
-            [manifold.deferred :as d])
+            [manifold.deferred :as d]
+            [clojure.edn :as edn])
   (:import [manifold.deferred
             SuccessDeferred Deferred]))
 
@@ -402,6 +403,9 @@
          (String. (json/write-value-as-bytes {:a (Foo. (java.lang.Exception. "yolo"))}
                                              json-mapper)))
       "don't do (bean x) on unknown values")
-  (is (= "\"#<SafeMap[:a, :b]>\""
+  (is (= "\"#exoscale/safe-map [:a :b]\""
          (json/write-value-as-string (safe-map {:a 1 :b 2})
-                                     json-mapper))))
+                                     json-mapper)))
+  (is (= [:a :b] (edn/read-string {:readers {'exoscale/safe-map identity}}
+                                  (with-out-str (pr (safe-map {:a 1 :b 2})))))
+      "make sure it's edn readable"))
