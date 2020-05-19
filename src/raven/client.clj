@@ -255,7 +255,7 @@
 (defrecord SafeMap [])
 (defmethod clojure.core/print-method SafeMap
   [m ^java.io.Writer writer]
-  (.write writer (format "#<SafeMap[%s]>" (str/join ", " (keys m)))))
+  (.write writer (format "#exoscale/safe-map [%s]" (str/join " " (keys m)))))
 
 (def safe-map
   "Wraps map into SafeMap record, effectively hidding values from json
