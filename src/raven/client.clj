@@ -7,6 +7,7 @@
             [clojure.spec.alpha :as s]
             [clojure.java.shell :as sh]
             [raven.exception :as e]
+            [raven.spec :as spec]
             [flatland.useful.utils :as useful])
   (:import [io.sentry Breadcrumb Sentry SentryEvent SentryLevel]
            [io.sentry.protocol Message Request SentryId User]
@@ -76,11 +77,15 @@
       (or (System/getenv "HOSTNAME")
           (second (swap! cache hostname))))))
 
-(def dsn-pattern
-  "The shape of a sentry DSN"
-  #"^(https?)://([^:]*):([^@]*)@(.*)/([0-9]+)$")
+(def ^:deprecated dsn-pattern
+  "The shape of a deprecated sentry DSN"
+  spec/deprecated-dsn-pattern)
 
-(defn parse-dsn
+(def new-dsn-pattern
+  "The shape of a new sentry DSN"
+  spec/new-dsn-pattern)
+
+(defn ^:deprecateed parse-dsn
   "Extract DSN parameters into a map"
   [dsn]
   (if-let [[_ proto key secret uri ^String pid] (re-find dsn-pattern dsn)]
@@ -280,6 +285,7 @@
                           {:keys [event_id level server_name timestamp platform contexts tags
                                   breadcrumbs user request fingerprint culprit] :as payload}]
 
+  (s/assert ::spec/dsn dsn)
   (let [sentry-event (SentryEvent.)]
     ;; https://docs.sentry.io/platforms/java/enriching-events/
     (doto-> sentry-event
@@ -298,7 +304,6 @@
     ;; handle event proper
     (cond
       (e/exception? event) (.setThrowable sentry-event event)
-      ;; this can override some extras from the context no?
       (map? event) (.setExtras sentry-event (HashMap. ^Map (walk/stringify-keys tags)))
       :default     (.setMessage sentry-event (->message event)))
 

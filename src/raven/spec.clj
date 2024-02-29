@@ -25,6 +25,13 @@
   [platform]
   (= platform "java"))
 
+(def deprecated-dsn-pattern
+  "The shape of a deprecated sentry DSN"
+  #"^(https?)://([^:]*):([^@]*)@(.*)/([0-9]+)$")
+
+(def new-dsn-pattern
+  #"^(https?):\/\/([^:]*)@(.*)\.ingest.sentry.io\/([0-9]+)$")
+
 ;; timestamp is expected to be "the number of seconds since the epoch", with a
 ;; precision of a millisecond.
 (s/def ::timestamp inst?)
@@ -56,6 +63,9 @@
 (s/def ::exception (s/keys :req-un [::value :raven.spec.stacktrace/type] :opt-un [::module ::thread_id ::stacktrace ::mechanism]))
 (s/def ::contexts (s/keys :req-un [::java ::clojure ::os]))
 
+(s/def ::dsn (s/or ::deprecated-dsn (s/and string? #(re-matches deprecated-dsn-pattern %))
+                   ::dsn            (s/and string? #(re-matches new-dsn-pattern %))
+                   ::in-memory-dsn  (s/and string? #(= ":memory:" %))))
 ;; The main payload spec.
 (s/def ::payload (s/keys :req-un [::event_id ::level ::server_name ::timestamp ::platform ::contexts]
                          :opt-un [::breadcrumbs ::user ::request ::fingerprint ::culprit]))
