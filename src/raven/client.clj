@@ -2,23 +2,15 @@
   "A netty-based Sentry client."
   (:import java.lang.Throwable
            java.lang.Exception)
-  (:require [aleph.http            :as http]
-            [manifold.deferred     :as d]
-            [jsonista.core         :as json]
-            [clojure.string        :as str]
-            [clojure.spec.alpha    :as s]
-            [clojure.java.shell    :as sh]
-            [raven.spec            :as spec]
-            [raven.exception       :as e]
+  (:require [clojure.walk :as walk]
+            [clojure.string :as str]
+            [clojure.spec.alpha :as s]
+            [clojure.java.shell :as sh]
+            [raven.exception :as e]
             [flatland.useful.utils :as useful])
-  (:import java.io.Closeable
-           (com.fasterxml.jackson.core JsonGenerator)
-           (com.fasterxml.jackson.databind MapperFeature
-                                           SerializationFeature)))
-
-(def user-agent
-  "Our advertized UA"
-  "exoscale-raven/0.4.4")
+  (:import [io.sentry Breadcrumb Sentry SentryEvent SentryLevel]
+           [io.sentry.protocol Message Request SentryId User]
+           [java.util Collection Date HashMap ArrayList Map UUID]))
 
 ;; Make sure we enforce spec assertions.
 (s/check-asserts true)
@@ -30,17 +22,15 @@
   obtain an atom that is sure to be per-thread."
   (useful/thread-local (atom {})))
 
-(def http-requests-payload-stub
-  "Storage for stubbed http 'requests' - actually, we store just the request's
-  payload in clojure form (before it's serialized to JSON)."
+(def sentry-captures-stub
+  "Storage for stubbed sentry 'events' - actually, we store just the events."
   (atom []))
 
-(defn clear-http-stub
-  "A convenience function to clear the http stub.
-
+(defn clear-captures-stub
+  "A convenience function to clear the events stub.
     This stub is only used when passing a DSN of ':memory:' to the lib."
   []
-  (swap! http-requests-payload-stub (fn [x] (vector))))
+  (swap! sentry-captures-stub (fn [x] (vector))))
 
 (defn clear-context
   "Reset this thread's context"
@@ -50,7 +40,7 @@
 (defn sentry-uuid!
   "A random UUID, without dashes"
   []
-  (str/replace (str (java.util.UUID/randomUUID)) "-" ""))
+  (UUID/randomUUID))
 
 (def hostname-refresh-interval
   "How often to allow reading /etc/hostname, in seconds."
@@ -107,17 +97,6 @@
    :server_name localhost
    :timestamp   ts
    :platform    "java"})
-
-(defn auth-header
-  "Compute the Sentry auth header."
-  [ts key sig]
-  (let [params [[:version   "2.0"]
-                [:signature sig]
-                [:timestamp ts]
-                [:client    user-agent]
-                [:key       key]]
-        param  (fn [[k v]] (format "sentry_%s=%s" (name k) v))]
-    (str "Sentry " (str/join ", " (map param params)))))
 
 (defn merged-payload
   "Return a payload map depending on the type of the event."
@@ -209,14 +188,14 @@
 
 (defn payload
   "Build a full valid payload."
-  [context event ts localhost tags]
-  (let [breadcrumbs-adder (partial add-breadcrumbs-to-payload context)
-        user-adder (partial add-user-to-payload context)
-        http-info-adder (partial add-http-info-to-payload context)
-        fingerprint-adder (partial add-fingerprint-to-payload context)
-        tags-adder (partial add-tags-to-payload context)
-        uuid-adder (partial add-uuid-to-payload context)]
-    (-> (merged-payload event ts localhost)
+  [context ts localhost tags]
+  (let [breadcrumbs-adder (partial add-breadcrumbs-to-payload context) ;;breadcrumbs
+        user-adder (partial add-user-to-payload context) ;;user
+        http-info-adder (partial add-http-info-to-payload context) ;;request
+        fingerprint-adder (partial add-fingerprint-to-payload context) ;;fingerprint
+        tags-adder (partial add-tags-to-payload context) ;;tags
+        uuid-adder (partial add-uuid-to-payload context)] ;;event_id
+    (-> (merged-payload {} ts localhost) ;; level server_name timestamp platform, and message culprit checksum stacktrace extra exception
         (uuid-adder)
         (breadcrumbs-adder)
         (user-adder)
@@ -227,30 +206,9 @@
         (validate-payload))))
 
 (defn timestamp!
-  "Retrieve a timestamp.
-
-  The format used is the same as python's 'time.time()' function - the number
-  of seconds since the epoch, as a double to acount for fractional seconds (since
-  the granularity is miliseconds)."
+  "Retrieve a timestamp."
   []
-  (double (/ (System/currentTimeMillis) 1000)))
-
-(defn sign
-  "HMAC-SHA1 for Sentry's format."
-  [payload ts key ^String secret]
-  (let [key (javax.crypto.spec.SecretKeySpec. (.getBytes secret) "HmacSHA1")
-        bs  (-> (doto (javax.crypto.Mac/getInstance "HmacSHA1")
-                  (.init key)
-                  (.update (.getBytes (str ts)))
-                  (.update (.getBytes " ")))
-                (.doFinal payload))]
-    (reduce str (for [b bs] (format "%02x" b)))))
-
-(defn perform-in-memory-request
-  "Perform an in-memory pseudo-request, actually just storing the payload on a storage
-    atom, to let users inspect/retrieve the payload in their tests."
-  [payload]
-  (swap! http-requests-payload-stub conj payload))
+  (Date.))
 
 (defrecord SafeMap [])
 (defmethod clojure.core/print-method SafeMap
@@ -264,70 +222,107 @@
   large/deep maps"
   map->SafeMap)
 
-(def json-mapper
-  (doto (json/object-mapper {:encoders {SafeMap (fn [x ^JsonGenerator jg] (.writeString jg (pr-str x)))}})
-    (.configure SerializationFeature/FAIL_ON_EMPTY_BEANS false)
-    (.configure MapperFeature/AUTO_DETECT_GETTERS false)
-    (.configure MapperFeature/AUTO_DETECT_IS_GETTERS false)
-    (.configure MapperFeature/AUTO_DETECT_SETTERS false)
-    (.configure MapperFeature/AUTO_DETECT_FIELDS false)
-    (.configure MapperFeature/DEFAULT_VIEW_INCLUSION false)))
+(defmacro doto->
+  "Combines `doto` and `cond->`, such as:
+  ```
+  (doto-> (HashMap.)
+    true  (.put 1 2)
+    false (.put 3 4))
+  ```
+  returns a map with `{1 2}`"
+  [x & forms]
+  (let [gx (gensym)]
+    `(let [~gx ~x]
+       ~@(map (fn [[t expr]]
+                `(when ~t ~(concat [(first expr) gx] (next expr))))
+              (partition 2 forms))
+       ~gx)))
 
-(def closable? (partial instance? Closeable))
+(defn- ->user [{:keys [id username email ip_address]}]
+  (let [user (User.)]
+    (doto-> user
+          id (.setId id)
+          username (.setUsername username)
+          email (.setEmail email)
+          ip_address (.setIpAddress ip_address))
+    user))
 
-(defn close-http-connection
-  "
-  When having a connection pool set, the body
-  cannot be closed as it's of a different type.
-  "
-  [response]
-  (let [{:keys [body]} response]
-    (when (closable? body)
-      (.close ^Closeable body))))
+(defn- ->request [{:keys [method url query_string cookies headers env data]}]
+  (let [request (Request.)]
+    (doto-> request
+            method (.setMethod  method)
+            url (.setUrl url)
+            query_string (.setQueryString query_string)
+            cookies (.setCookies cookies)
+            headers (.setHeaders (HashMap. ^Map (walk/stringify-keys headers)))
+            env (.setEnvs (HashMap. ^Map (walk/stringify-keys env)))
+            data (.setData (pr-str data)))
+    request))
 
-(defn re-throw-response
-  "
-  Throw the response in case of its status was not 2xx
-  as we don't want Sentry errors to be unnoticed.
-  "
-  [response]
-  (let [{:keys [status]} response]
-    (when-not (-> status str first (= \2))
-      (throw (ex-info (format "Sentry HTTP error") response)))))
+(defn- ->breadcrumbs [{:keys [values] :as breadcrumbs}]
+  (ArrayList. ^Collection
+              (for [breadcrumb values
+                    :let [breadcrumb-type (:raven.spec.breadcrumb/type breadcrumb)
+                          {:keys [timestamp level message category]} breadcrumb
+                          bcrumb (if timestamp (Breadcrumb. ^Date timestamp) (Breadcrumb.))]]
+                (doto-> bcrumb
+                        breadcrumb-type (.setType breadcrumb-type)
+                        level (.setLevel (SentryLevel/valueOf (.toUpperCase (str level))))
+                        message (.setMessage ^String message)
+                        category (.setCategory category)))))
 
-(defn perform-http-request
-  [context dsn ts payload]
-  (let [json-payload             (json/write-value-as-bytes payload json-mapper)
-        {:keys [key secret uri]} (parse-dsn dsn)
-        sig                      (sign json-payload ts key secret)]
-    (d/chain
-     (http/post (str uri "/api/store/")
-                (merge (select-keys context [:pool :middleware :pool-timeout
-                                             :response-executor :request-timeout
-                                             :read-timeout :connection-timeout])
-                       {:headers           {:x-sentry-auth  (auth-header ts key sig)
-                                            :accept         "application/json"
-                                            :content-type   "application/json;charset=utf-8"}
-                        :body              json-payload
-                        :throw-exceptions? false}))
-     (fn [response]
-       (close-http-connection response)
-       (re-throw-response response)))))
+(defn- ->message [s]
+  (let [m (Message.)]
+    (.setMessage m s)
+    m))
+
+(defn- make-sentry-event [dsn event
+                          {:keys [event_id level server_name timestamp platform contexts tags
+                                  breadcrumbs user request fingerprint culprit] :as payload}]
+
+  (let [sentry-event (SentryEvent.)]
+    ;; https://docs.sentry.io/platforms/java/enriching-events/
+    (doto-> sentry-event
+            breadcrumbs (.setBreadcrumbs (->breadcrumbs breadcrumbs))
+            fingerprint (.setFingerprints (ArrayList. ^Collection fingerprint))
+            event_id (.setEventId (SentryId. ^UUID event_id))
+            level (.setLevel ^SentryLevel (SentryLevel/valueOf (.toUpperCase (str level))))
+            server_name (.setServerName server_name)
+            timestamp (.setTimestamp timestamp)
+            platform (.setPlatform platform)
+            user (.setUser (->user user))
+            request (.setRequest (->request request))
+            tags (.setTags (HashMap. ^Map (walk/stringify-keys tags)))
+            (map? contexts) (.setExtras (HashMap. ^Map (walk/stringify-keys contexts))))
+
+    ;; handle event proper
+    (cond
+      (e/exception? event) (.setThrowable sentry-event event)
+      ;; this can override some extras from the context no?
+      (map? event) (.setExtras sentry-event (HashMap. ^Map (walk/stringify-keys tags)))
+      :default     (.setMessage sentry-event (->message event)))
+
+    sentry-event))
+
+(defn perform-sentry-capture [dsn event {:keys [contexts] :as payload}]
+  (let [sentry-event (make-sentry-event dsn event payload)]
+    ;; https://docs.sentry.io/platforms/java/enriching-events/scopes/
+    (if (= dsn ":memory:")
+      (swap! sentry-captures-stub conj sentry-event)
+      (Sentry/captureEvent ^SentryEvent sentry-event))))
 
 (defn capture!
   "Send a capture over the network. If `ev` is an exception,
    build an appropriate payload for the exception."
   ([context dsn event tags]
    (let [ts      (timestamp!)
-         payload (payload context event ts (localhost) tags)
+         payload (payload context ts (localhost) tags)
          uuid    (:event_id payload)]
-     (d/chain
-      (if (= dsn ":memory:")
-        (perform-in-memory-request payload)
-        (perform-http-request context dsn ts payload))
-      (fn [_]
-        (clear-context)
-        uuid))))
+     (try
+       (perform-sentry-capture dsn event payload)
+       uuid
+       (finally
+         (clear-context)))))
   ([dsn ev tags]
    (capture! @@thread-storage dsn ev tags))
   ([dsn ev]
@@ -347,9 +342,9 @@
     :timestamp timestamp
     :level     level
     :message   message
-    :category  category})
+    :category  category}))
   ;; :data (expected in case of non-default)
-)
+
 
 (defn add-breadcrumb!
   "Append a breadcrumb to the list of breadcrumbs.
@@ -491,8 +486,5 @@
 (defn release!
   "Release new application version with provided webhook release URL."
   [webhook-endpoint payload]
-  (if (some? (:version payload))
-    (http/post webhook-endpoint
-               {:headers {:content-type "application/json"}
-                :body    (json/write-value-as-bytes payload)})
-    (throw (ex-info "no version key provided" {:payload payload}))))
+  (throw (ex-info "release not implemented in Sentry SDK" {:webhook-endpoint webhook-endpoint
+                                                           :payload payload})))

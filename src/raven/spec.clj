@@ -27,7 +27,7 @@
 
 ;; timestamp is expected to be "the number of seconds since the epoch", with a
 ;; precision of a millisecond.
-(s/def ::timestamp float?)
+(s/def ::timestamp inst?)
 (s/def :raven.spec.breadcrumb/type is-valid-type?)
 (s/def :raven.spec.stacktrace/type string?)
 (s/def ::level is-valid-level?)
@@ -57,4 +57,5 @@
 (s/def ::contexts (s/keys :req-un [::java ::clojure ::os]))
 
 ;; The main payload spec.
-(s/def ::payload (s/keys :req-un [::event_id ::level ::server_name ::timestamp ::platform ::contexts] :opt-un [::breadcrumbs ::user ::request ::fingerprint ::culprit]))
+(s/def ::payload (s/keys :req-un [::event_id ::level ::server_name ::timestamp ::platform ::contexts]
+                         :opt-un [::breadcrumbs ::user ::request ::fingerprint ::culprit]))

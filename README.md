@@ -232,7 +232,7 @@ much test data as possible.
 In order to facilitate testing of programs using this library, a special
 ":memory:" DSN is supported. When passed to this library in place of a real
 DSN, the payload map that would be sent to sentry in an HTTP request is instead
-stored in the `http-requests-payload-stub` atom.
+stored in the `sentry-captures-stub` atom.
 
 In your tests, you can assert that a Sentry payload conforming to your
 expectations would have been sent to the sentry server with:
@@ -240,11 +240,11 @@ expectations would have been sent to the sentry server with:
 ```clojure
 (do
     (code-that-invokes-capture-once)
-    (is (= 1 (count @http-requests-payload-stub))))
+    (is (= 1 (count @sentry-captures-stub))))
 ```
 
 Users are responsible for cleaning the atom up between test runs, for example
-using the `clear-http-stub` convenience function.
+using the `clear-captures-stub` convenience function.
 
 ### Changelog
 

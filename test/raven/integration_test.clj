@@ -1,7 +1,8 @@
 (ns raven.integration-test
   (:require [clojure.test :refer :all]
             [raven.client :refer :all]
-            [aleph.http :refer [default-connection-pool]]))
+            [raven.spec])
+  (:import [io.sentry SentryEvent]))
 
 (def http-info-map
   (make-http-info "http://example.com" "POST" {:Content-Type "text/html"} "somekey=somevalue" "somecookie=somevalue" "some POST data. This might be BIG!" {:some-env "a value"}))
@@ -15,26 +16,54 @@
 
 (deftest ^:integration-test raven-integration-test
   (testing "Sending out a test sentry entry."
-    (add-breadcrumb! (make-breadcrumb! "The user did something" "category.1"))
-    (add-breadcrumb! (make-breadcrumb! "The user did something else" "category.1"))
-    (add-breadcrumb! (make-breadcrumb! "The user did something bad" "category.2" "error"))
-    (add-user! (make-user "123456" "huginn@example.com" "127.0.0.1" "Huginn"))
-    (add-tag! :integration-test-pool "default")
-    (add-tag! :integration-test-context "thread-local")
-    (add-http-info! http-info-map)
-    (capture! (get-dsn) (Exception. "Test exception") {:arbitrary-tag "arbitrary-value"})
-    ;; We sleep for a second since otherwise the process dies before the request had time to fly out
-    ;; to sentry (since it's asynchronous and therefore doesn't block the main thread).
-    (Thread/sleep 1000)))
+    (let [ex (Exception. "Test exception")]
+      (add-breadcrumb! (make-breadcrumb! "The user did something" "category.1"))
+      (add-breadcrumb! (make-breadcrumb! "The user did something else" "category.1"))
+      (add-breadcrumb! (make-breadcrumb! "The user did something bad" "category.2" "error"))
+      (add-user! (make-user "123456" "huginn@example.com" "127.0.0.1" "Huginn"))
+      (add-tag! :integration-test-pool "default")
+      (add-tag! :integration-test-context "thread-local")
+      (add-http-info! http-info-map)
+      (capture! (get-dsn) ex {:arbitrary-tag "arbitrary-value"})
 
-(deftest ^:integration-test raven-integration-test-explicit-pool
-  (testing "Sending out a test sentry entry using an explicit context and explcit pool"
-    (capture! {:pool default-connection-pool} (get-dsn) (-> {}
-                                                            (add-user! (make-user "654321" "muninn@example.com" "127.1.1.1" "Muninn"))
-                                                            (add-http-info! http-info-map)
-                                                            (add-exception! (Exception. "Another test exception"))) {:integration-test-pool "explicit"
-                                                                                                                     :integration-test-context "explicit"})
+      (let [[^SentryEvent evt] @sentry-captures-stub]
+        (testing "breadcrumbs"
+          (let [[b1 b2 b3] (->> (.getBreadcrumbs evt) (sort-by #(.getMessage %)))]
+            (is (= "The user did something" (.getMessage b1)))
+            (is (= "category.1" (.getCategory b1)))
 
-    ;; We sleep for a second since otherwise the process dies before the request had time to fly out
-    ;; to sentry (since it's asynchronous and therefore doesn't block the main thread).
-    (Thread/sleep 1000)))
+            (is (= "The user did something bad" (.getMessage b2)))
+            (is (= "category.2" (.getCategory b2)))
+
+            (is (= "The user did something else" (.getMessage b3)))
+            (is (= "category.1" (.getCategory b3)))))
+
+        (testing "user"
+          (let [user (.getUser evt)]
+            (is (= "123456" (.getId user)))
+            (is (= "huginn@example.com" (.getEmail user)))
+            (is (= "127.0.0.1" (.getIpAddress user)))
+            (is (= "Huginn" (.getUsername user)))))
+
+        (testing "tags"
+          (let [tags (.getTags evt)]
+            (is (= {"arbitrary-tag" "arbitrary-value", "integration-test-pool" "default", "integration-test-context" "thread-local"}
+                   tags))))
+
+        (testing "request"
+          (let [req (.getRequest evt)]
+            (is (= "http://example.com" (.getUrl req)))
+            (is (= "POST" (.getMethod req)))
+            (is (= "somekey=somevalue" (.getQueryString req)))
+            (is (= "\"some POST data. This might be BIG!\"" (.getData req)))
+            (is (= "somecookie=somevalue" (.getCookies req)))
+            (is (= {"Content-Type" "text/html"} (.getHeaders req)))
+            (is (= {"some-env" "a value"} (.getEnvs req)))
+            (is (nil? (.getOthers req)))
+            (is (nil? (.getApiTarget req)))))
+
+        (testing "exception"
+          (let [x (.getThrowable evt)]
+            (is (= ex x))))))
+
+    (clear-captures-stub)))

@@ -92,6 +92,6 @@
              (ex-info "bbb" {:bar {:aaa {:bbb :CCC}}}
                       (ex-info "ccc" {:baz [true false]}))))
 
-  (-> _e exception->ev (dissoc :stacktrace))
+  (-> _e exception->ev (dissoc :stacktrace)))
 
-  )
+
