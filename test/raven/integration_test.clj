@@ -79,7 +79,7 @@
 
   (capture! (System/getenv "SENTRY_DSN") (ex-info "some text" {:some "data"}) {:arbitrary-tag "arbitrary-value"})
 
-  (let [ex (Exception. "Test complete exception")]
+  (let [ex (Exception. "Test complete exception" (RuntimeException. "Cause"))]
     (add-breadcrumb! (make-breadcrumb! "The user did something" "category.1"))
     (add-breadcrumb! (make-breadcrumb! "The user did something else" "category.1"))
     (add-breadcrumb! (make-breadcrumb! "The user did something bad" "category.2" "error"))
