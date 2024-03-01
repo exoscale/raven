@@ -38,30 +38,6 @@ A `release!` function allows for making a [Release](https://docs.sentry.io/workf
   that omitting this parameter will make use of some thread-local storage for
   some of the functionality.
 
-#### Passing your own aleph connection pool
-
-In many cases, it makes sense to reuse an already existing aleph conneciton pool (created
-with http/connection-pool). Raven will reuse a connection pool if it is passed to
-the (capture!) function through the `context` parameter, as `:pool`.
-
-```clojure
-(capture! {:pool (http/connection-pool {:connection-options {:raw-stream? true}})} "<dsn>" "My message")
-```
-
-#### More aleph options
-
-You can also pass the following aleph configuration through the context:
-
-```clojure
-(capture! {:pool nil
-           :middleware nil
-           :pool-timeout nil
-           :response-executor nil
-           :request-timeout nil
-           :read-timeout nil
-           :connection-timeout nil})
-```
-
 ### Extra interfaces
 
 #### Tags
@@ -247,6 +223,13 @@ Users are responsible for cleaning the atom up between test runs, for example
 using the `clear-captures-stub` convenience function.
 
 ### Changelog
+
+#### 1.0.0
+
+- Use sentry native SDK instead of aleph
+- Remove aleph and jsonista dependencies
+- Deprecate old dsn
+- Drop `clear-http-stub` in favor of `clear-captures-stub`
 
 #### 0.4.13
 

@@ -2,7 +2,7 @@
   (:require [clojure.test :refer :all]
             [raven.client :refer :all]
             [raven.spec])
-  (:import [io.sentry SentryEvent]))
+  (:import [io.sentry Sentry$OptionsConfiguration SentryEvent]))
 
 (def http-info-map
   (make-http-info "http://example.com" "POST" {:Content-Type "text/html"} "somekey=somevalue" "somecookie=somevalue" "some POST data. This might be BIG!" {:some-env "a value"}))
@@ -67,3 +67,25 @@
             (is (= ex x))))))
 
     (clear-captures-stub)))
+
+(comment
+  (import '[io.sentry Sentry Sentry$OptionsConfiguration])
+  (Sentry/init (reify Sentry$OptionsConfiguration
+                 (configure [this opt]
+                   (.setEnableExternalConfiguration opt true))))
+
+
+  (capture! (System/getenv "SENTRY_DSN") (RuntimeException. "some text") {:arbitrary-tag "arbitrary-value"})
+
+  (capture! (System/getenv "SENTRY_DSN") (ex-info "some text" {:some "data"}) {:arbitrary-tag "arbitrary-value"})
+
+  (let [ex (Exception. "Test complete exception")]
+    (add-breadcrumb! (make-breadcrumb! "The user did something" "category.1"))
+    (add-breadcrumb! (make-breadcrumb! "The user did something else" "category.1"))
+    (add-breadcrumb! (make-breadcrumb! "The user did something bad" "category.2" "error"))
+    (add-user! (make-user "123456" "huginn@example.com" "127.0.0.1" "Huginn"))
+    (add-tag! :integration-test-pool "default")
+    (add-tag! :integration-test-context "thread-local")
+    (add-http-info! http-info-map)
+    (capture! (System/getenv "TEST_DSN") ex {:arbitrary-tag "arbitrary-value"}))
+  "")

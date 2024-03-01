@@ -9,12 +9,37 @@
             [raven.exception :as e]
             [raven.spec :as spec]
             [flatland.useful.utils :as useful])
-  (:import [io.sentry Breadcrumb Sentry SentryEvent SentryLevel]
+  (:import [io.sentry Hub Breadcrumb Sentry SentryEvent SentryLevel SentryOptions]
            [io.sentry.protocol Message Request SentryId User]
            [java.util Collection Date HashMap ArrayList Map UUID]))
 
 ;; Make sure we enforce spec assertions.
 (s/check-asserts true)
+
+(def sentry-hubs
+  "Storage for sentry hub instances"
+  (atom {}))
+
+
+(defn- make-hub
+  "Creates a new sentry hub for the given dsn"
+  [dsn]
+  (let [^SentryOptions options (SentryOptions.)]
+    ;; emulate setEnableExternalConfiguration but don't require SENTRY_DSN to be set
+    ;; otherwise might as well don't require a dsn when calling capture!
+    (.setDsn options dsn)
+    (when-let [rel (System/getenv "SENTRY_RELEASE")]
+      (.setRelease options rel))
+    (when-let [rel (System/getenv "SENTRY_ENVIRONMENT")]
+      (.setEnvironment options rel))
+    (Hub. options)))
+
+(defn- hub-for ^Hub [dsn]
+  (get (swap! sentry-hubs (fn [m]
+                            (if (contains? m dsn)
+                              m
+                              (assoc m dsn (make-hub dsn)))))
+       dsn))
 
 (def thread-storage
   "Storage for this particular thread.
@@ -215,18 +240,6 @@
   []
   (Date.))
 
-(defrecord SafeMap [])
-(defmethod clojure.core/print-method SafeMap
-  [m ^java.io.Writer writer]
-  (.write writer (format "#exoscale/safe-map [%s]" (str/join " " (keys m)))))
-
-(def safe-map
-  "Wraps map into SafeMap record, effectively hidding values from json
-  output, will not allow 2-way roundtrip. ex: (safe-map {:a 1}) ->
-  \"#exoscale/safe-map [:a]\". Can be used to hide secrets and/or shorten
-  large/deep maps"
-  map->SafeMap)
-
 (defmacro doto->
   "Combines `doto` and `cond->`, such as:
   ```
@@ -314,7 +327,8 @@
     ;; https://docs.sentry.io/platforms/java/enriching-events/scopes/
     (if (= dsn ":memory:")
       (swap! sentry-captures-stub conj sentry-event)
-      (Sentry/captureEvent ^SentryEvent sentry-event))))
+      (let [hub (hub-for dsn)]
+        (.captureEvent hub ^SentryEvent sentry-event)))))
 
 (defn capture!
   "Send a capture over the network. If `ev` is an exception,
