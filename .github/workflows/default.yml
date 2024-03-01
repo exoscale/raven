@@ -8,4 +8,4 @@ jobs:
     - name: Install dependencies
       run: lein deps
     - name: Run tests
-      run: lein test :all
+      run: DSN=":memory:" lein test :all
